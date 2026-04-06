@@ -13,14 +13,11 @@ check:
     cp -a test/fixtures/ts-project-1/. sandbox/
     echo 'Sandbox generated ✅'
 
-# Update Cabal index, get latest versions, and freeze them
+# Update Dependencies versions by updating the Nix flake input
 @update:
-    echo "Updating Cabal index..."
-    cabal update
-    echo "Resolving fresh dependencies..."
-    rm -f cabal.project.freeze
-    cabal freeze
-    echo "Done! Dependencies updated and locked in 'cabal.project.freeze' ❄️"
+    echo "Updating Nix flake inputs (pulling fresh Hackage snapshot)..."
+    nix flake update
+    echo "Done! Dependencies updated and securely locked in 'flake.lock' ❄️"
 
 # Updates hie.yaml (must be in nix develop)
 @update-hie:
