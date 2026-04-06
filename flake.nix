@@ -63,9 +63,6 @@
             buildInputs = sysLibs;
 
             shellHook = ''
-              export PATH=$(echo $PATH | tr ':' '\n' | grep -v "ghcup" | tr '\n' ':')
-              export HASKELL_LANGUAGE_SERVER_GHC_PATH="${hpkgs.ghc}/bin/ghc"
-
               echo "🔮 Haskell Dev env initialized."
               echo "--------------------------------------------------------"
 
