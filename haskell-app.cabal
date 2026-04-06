@@ -30,8 +30,6 @@ common shared-properties
 
     build-depends:
         base >= 4.18 && < 5,
-        text,
-        aeson
 
 executable haskell-app
     import:           shared-properties
@@ -55,7 +53,9 @@ library
 
     build-depends:
         effectful,
-        containers
+        containers,
+        text,
+        aeson
 
 
 test-suite haskell-app-test
