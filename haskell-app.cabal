@@ -8,16 +8,73 @@ maintainer:         iliyan@ivy-apps.com
 build-type:         Simple
 extra-doc-files:    CHANGELOG.md
 
-common warnings
-    ghc-options: -Wall
+common shared-properties
+    default-language: GHC2024
+    
+    ghc-options: 
+        -Wall 
+        -Werror
+
+    default-extensions:
+        DuplicateRecordFields
+        OverloadedRecordDot
+        NoFieldSelectors
+        OverloadedStrings
+        TypeFamilies
+        LambdaCase
+        DataKinds
+        DerivingStrategies
+        DeriveAnyClass
+        DeriveGeneric
+        TypeApplications
+
+    build-depends:
+        base >= 4.18 && < 5,
+        text,
+        aeson
 
 executable haskell-app
-    import:           warnings
-    main-is:          Main.hs
-    -- other-modules:
-    -- other-extensions:
-    build-depends:    
-        base >= 4.18 && < 5,
-
+    import:           shared-properties
     hs-source-dirs:   app
-    default-language: GHC2024
+    main-is:          Main.hs
+    
+    ghc-options:
+        -threaded
+        -rtsopts
+        "-with-rtsopts=-N"
+
+    build-depends:
+        haskell-app
+
+library
+    import:           shared-properties
+    hs-source-dirs:   src
+    
+    exposed-modules:  
+        App
+
+    build-depends:
+        effectful,
+        containers
+
+
+test-suite haskell-app-test
+    import:           shared-properties
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   test
+    main-is:          Main.hs
+
+    build-tool-depends: 
+        hspec-discover:hspec-discover
+    
+    other-modules:
+        AppSpec
+
+    build-depends:
+        haskell-app,
+        hspec,
+        hspec-golden,
+        hedgehog,
+        hspec-hedgehog,
+        aeson-pretty,
+        effectful

@@ -1,9 +1,6 @@
 module Main where
 
-main :: IO ()
-main = do
-    putStrLn "Hello, Haskell!"
-    putStrLn . show $ x
+import App (runApp)
 
-x :: Integer
-x = 5
+main :: IO ()
+main = runApp
