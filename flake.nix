@@ -1,6 +1,4 @@
 {
-  description = "Ivy Apps Haskell Project";
-
   nixConfig = {
     extra-substituters = [
       "https://nix-community.cachix.org"
@@ -29,11 +27,13 @@
 
       perSystem = { config, pkgs, system, ... }:
         let
+          projectName = "haskell-app";
+
           ghcVersion = "ghc9122";
 
           hpkgs = pkgs.haskell.packages.${ghcVersion}.override {
             overrides = self: super: {
-              haskell-app = self.callCabal2nix "haskell-app" ./. { };
+              ${projectName} = self.callCabal2nix projectName ./. { };
               fmt = pkgs.haskell.lib.dontCheck super.fmt;
             };
           };
@@ -46,7 +46,7 @@
         in
         {
           devShells.default = hpkgs.shellFor {
-            packages = p: [ p.haskell-app ];
+            packages = p: [ p.${projectName} ];
             withHoogle = false;
 
             nativeBuildInputs = [
