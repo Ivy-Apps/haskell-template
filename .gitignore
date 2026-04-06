@@ -54,3 +54,6 @@ sandbox/
 Leaving
 hls.log
 report.html
+
+# Nix outputs
+result

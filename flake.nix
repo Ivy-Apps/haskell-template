@@ -23,28 +23,38 @@
 
   outputs = inputs@{ self, nixpkgs, flake-parts, my-nixvim, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = nixpkgs.lib.systems.flakeExposed;
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
+      ];
 
       perSystem = { config, pkgs, system, ... }:
         let
           projectName = "haskell-app";
-
           ghcVersion = "ghc9122";
 
+          hlib = pkgs.haskell.lib.compose;
           hpkgs = pkgs.haskell.packages.${ghcVersion}.override {
             overrides = self: super: {
               ${projectName} = self.callCabal2nix projectName ./. { };
-              fmt = pkgs.haskell.lib.dontCheck super.fmt;
+              fmt = hlib.dontCheck super.fmt;
             };
           };
 
           hgold = pkgs.haskell.lib.justStaticExecutables hpkgs.hspec-golden;
-
           sysLibs = [ pkgs.zlib pkgs.xz ];
-
           nvim = my-nixvim.lib.mkHaskellNvim pkgs hpkgs;
         in
         {
+          # Produce a runnable binary
+          packages.default = hlib.justStaticExecutables hpkgs.${projectName};
+          apps.default = {
+            type = "app";
+            program = "${config.packages.default}/bin/${projectName}";
+          };
+
           devShells.default = hpkgs.shellFor {
             packages = p: [ p.${projectName} ];
             withHoogle = false;
