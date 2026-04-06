@@ -48,60 +48,75 @@
           nvim = my-nixvim.lib.mkHaskellNvim pkgs hpkgs;
         in
         {
-          # Produce a runnable binary
+          # nix build
           packages.default = hlib.justStaticExecutables hpkgs.${projectName};
+          # nix run
           apps.default = {
             type = "app";
             program = "${config.packages.default}/bin/${projectName}";
           };
 
-          devShells.default = hpkgs.shellFor {
-            packages = p: [ p.${projectName} ];
-            withHoogle = false;
+          devShells = {
+            ci = hpkgs.shellFor {
+              packages = p: [ p.${projectName} ];
+              withHoogle = false;
 
-            nativeBuildInputs = [
-              pkgs.pkg-config
-              pkgs.cabal-install
-              hpkgs.haskell-language-server
-              hpkgs.hlint
-              hpkgs.implicit-hie
-              hpkgs.fourmolu
-              hgold
-              nvim
-            ];
+              nativeBuildInputs = [
+                pkgs.pkg-config
+                pkgs.cabal-install
+              ];
 
-            buildInputs = sysLibs;
+              buildInputs = sysLibs;
+            };
 
-            shellHook = ''
-              echo "🔮 Haskell Dev env initialized."
-              echo "--------------------------------------------------------"
+            default = hpkgs.shellFor {
+              packages = p: [ p.${projectName} ];
+              withHoogle = false;
 
-              echo "✅ GHC:     $(ghc --version)"
-              CABAL_PATH=$(type -p cabal)
-              CABAL_VER=$(cabal --version | head -n 1)
-              if [[ "$CABAL_PATH" == *"/nix/store/"* ]]; then
-                  echo "✅ Cabal:   $CABAL_VER"
-                  echo "            Path: $CABAL_PATH"
-              else
-                  echo "❌ Cabal:   $CABAL_VER"
-                  echo "            ⚠️  WARNING: Not sourced from Nix!"
-                  echo "            Path: $CABAL_PATH"
-              fi
+              nativeBuildInputs = [
+                nvim
+                hgold
+                pkgs.pkg-config
+                pkgs.cabal-install
+                hpkgs.haskell-language-server
+                hpkgs.hlint
+                hpkgs.implicit-hie
+                hpkgs.fourmolu
+              ];
 
-              HLS_PATH=$(type -p haskell-language-server)
-              HLS_VER=$(haskell-language-server --version | head -n 1)
-              if [[ "$HLS_PATH" == *"/nix/store/"* ]]; then
-                  echo "✅ HLS:     $HLS_VER"
-                  echo "            Path: $HLS_PATH"
-              else
-                  echo "❌ HLS:     $HLS_VER"
-                  echo "            ⚠️  WARNING: Not sourced from Nix!"
-                  echo "            Path: $HLS_PATH"
-              fi
-              echo "--------------------------------------------------------"
+              buildInputs = sysLibs;
 
-              echo "   Run 'nvim .' to start."
-            '';
+              shellHook = ''
+                echo "🔮 Haskell Dev env initialized."
+                echo "--------------------------------------------------------"
+
+                echo "✅ GHC:     $(ghc --version)"
+                CABAL_PATH=$(type -p cabal)
+                CABAL_VER=$(cabal --version | head -n 1)
+                if [[ "$CABAL_PATH" == *"/nix/store/"* ]]; then
+                    echo "✅ Cabal:   $CABAL_VER"
+                    echo "            Path: $CABAL_PATH"
+                else
+                    echo "❌ Cabal:   $CABAL_VER"
+                    echo "            ⚠️  WARNING: Not sourced from Nix!"
+                    echo "            Path: $CABAL_PATH"
+                fi
+
+                HLS_PATH=$(type -p haskell-language-server)
+                HLS_VER=$(haskell-language-server --version | head -n 1)
+                if [[ "$HLS_PATH" == *"/nix/store/"* ]]; then
+                    echo "✅ HLS:     $HLS_VER"
+                    echo "            Path: $HLS_PATH"
+                else
+                    echo "❌ HLS:     $HLS_VER"
+                    echo "            ⚠️  WARNING: Not sourced from Nix!"
+                    echo "            Path: $HLS_PATH"
+                fi
+                echo "--------------------------------------------------------"
+
+                echo "   Run 'nvim .' to start."
+              '';
+            };
           };
         };
     };
