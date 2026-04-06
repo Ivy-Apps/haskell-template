@@ -50,13 +50,13 @@
             withHoogle = false;
 
             nativeBuildInputs = [
-              hpkgs.cabal-install
+              pkgs.pkg-config
+              pkgs.cabal-install
               hpkgs.haskell-language-server
               hpkgs.hlint
               hpkgs.implicit-hie
               hpkgs.fourmolu
               hgold
-              pkgs.pkg-config
               nvim
             ];
 
