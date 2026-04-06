@@ -18,8 +18,8 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - uses: DeterminateSystems/flake-checker-action@main
       
-      - name: Build
+      - name: 🏗️ Build
         run: nix build . --accept-flake-config
         
-      - name: Test
-        run: nix develop .#ci --accept-flake-config --command cabal test
+      - name: 🧪 Test
+        run: nix develop .#ci --accept-flake-config --command bash -c "cabal update && cabal test"
