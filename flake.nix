@@ -78,6 +78,7 @@
                 hgold
                 pkgs.pkg-config
                 pkgs.cabal-install
+                pkgs.just
                 hpkgs.haskell-language-server
                 hpkgs.hlint
                 hpkgs.implicit-hie
@@ -117,7 +118,8 @@
                 cabal build
                 echo "--------------------------------------------------------"
 
-                echo "   Run 'nvim .' to start."
+                echo "Run 'nvim .' to start an IDE."
+                echo "Type 'just' to see available commands."
               '';
             };
           };
