@@ -113,6 +113,9 @@
                     echo "            Path: $HLS_PATH"
                 fi
                 echo "--------------------------------------------------------"
+                echo "🚧 cabal build"
+                cabal build
+                echo "--------------------------------------------------------"
 
                 echo "   Run 'nvim .' to start."
               '';
