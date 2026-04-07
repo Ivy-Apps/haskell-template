@@ -45,7 +45,7 @@
 
           hgold = pkgs.haskell.lib.justStaticExecutables hpkgs.hspec-golden;
           sysLibs = [ pkgs.zlib pkgs.xz ];
-          nvim = my-nixvim.lib.mkHaskellNvim pkgs hpkgs;
+          nvim = my-nixvim.lib.mkHaskellNvim { inherit pkgs hpkgs; };
         in
         {
           # nix build
