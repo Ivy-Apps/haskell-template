@@ -33,23 +33,32 @@
       perSystem = { config, pkgs, system, ... }:
         let
           projectName = "haskell-app";
-          ghcVersion = "ghc9122";
+          ghcVersion = "ghc9103";
 
           hlib = pkgs.haskell.lib.compose;
+          haskellOverrides = self: super: {
+            ${projectName} = self.callCabal2nix projectName ./. { };
+            fmt = hlib.dontCheck super.fmt;
+          };
           hpkgs = pkgs.haskell.packages.${ghcVersion}.override {
-            overrides = self: super: {
-              ${projectName} = self.callCabal2nix projectName ./. { };
-              fmt = hlib.dontCheck super.fmt;
-            };
+            overrides = haskellOverrides;
+          };
+          staticHpkgs = pkgs.pkgsStatic.haskell.packages.${ghcVersion}.override {
+            overrides = haskellOverrides;
           };
 
           hgold = pkgs.haskell.lib.justStaticExecutables hpkgs.hspec-golden;
           sysLibs = [ pkgs.zlib pkgs.xz ];
-          nvim = my-nixvim.lib.mkHaskellNvim pkgs hpkgs;
+          nvim = my-nixvim.lib.mkHaskellNvim { inherit pkgs hpkgs; };
         in
         {
-          # nix build
-          packages.default = hlib.justStaticExecutables hpkgs.${projectName};
+          packages = {
+            # Run: `nix build` (Fast local testing)
+            default = hlib.justStaticExecutables hpkgs.${projectName};
+
+            # Run: `nix build .#static` (Bulletproof binary for servers)
+            static = hlib.justStaticExecutables staticHpkgs.${projectName};
+          };
           # nix run
           apps.default = {
             type = "app";
@@ -77,12 +86,11 @@
                 nvim
                 hgold
                 pkgs.pkg-config
-                pkgs.cabal-install
                 pkgs.just
+                pkgs.cabal-install
+                pkgs.hlint
                 hpkgs.haskell-language-server
-                hpkgs.hlint
                 hpkgs.implicit-hie
-                hpkgs.fourmolu
               ];
 
               buildInputs = sysLibs;

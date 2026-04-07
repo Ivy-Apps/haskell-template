@@ -1,80 +1,60 @@
-cabal-version:      3.0
-name:               haskell-app
-version:            0.1.0.0
-license:            BSD-3-Clause
-license-file:       LICENSE
-author:             ivy-apps
-maintainer:         iliyan@ivy-apps.com
-build-type:         Simple
-extra-doc-files:    CHANGELOG.md
+cabal-version:   3.0
+name:            haskell-app
+version:         0.1.0.0
+license:         BSD-3-Clause
+license-file:    LICENSE
+author:          ivy-apps
+maintainer:      iliyan@ivy-apps.com
+build-type:      Simple
+extra-doc-files: CHANGELOG.md
 
 common shared-properties
-    default-language: GHC2024
-    
-    ghc-options: 
-        -Wall 
-        -Werror
+  default-language:   GHC2024
+  ghc-options:        -Wall -Werror
+  default-extensions:
+    DataKinds
+    DeriveAnyClass
+    DeriveGeneric
+    DerivingStrategies
+    DuplicateRecordFields
+    LambdaCase
+    NoFieldSelectors
+    OverloadedRecordDot
+    OverloadedStrings
+    TypeApplications
+    TypeFamilies
 
-    default-extensions:
-        DuplicateRecordFields
-        OverloadedRecordDot
-        NoFieldSelectors
-        OverloadedStrings
-        TypeFamilies
-        LambdaCase
-        DataKinds
-        DerivingStrategies
-        DeriveAnyClass
-        DeriveGeneric
-        TypeApplications
-
-    build-depends:
-        base >= 4.18 && < 5,
+  build-depends:      base >=4.18 && <5
 
 executable haskell-app
-    import:           shared-properties
-    hs-source-dirs:   app
-    main-is:          Main.hs
-    
-    ghc-options:
-        -threaded
-        -rtsopts
-        "-with-rtsopts=-N"
-
-    build-depends:
-        haskell-app
+  import:         shared-properties
+  hs-source-dirs: app
+  main-is:        Main.hs
+  ghc-options:    -threaded -rtsopts -with-rtsopts=-N
+  build-depends:  haskell-app
 
 library
-    import:           shared-properties
-    hs-source-dirs:   src
-    
-    exposed-modules:  
-        App
-
-    build-depends:
-        effectful,
-        containers,
-        text,
-        aeson
-
+  import:          shared-properties
+  hs-source-dirs:  src
+  exposed-modules: App
+  build-depends:
+    , aeson
+    , containers
+    , effectful
+    , text
 
 test-suite haskell-app-test
-    import:           shared-properties
-    type:             exitcode-stdio-1.0
-    hs-source-dirs:   test
-    main-is:          Main.hs
-
-    build-tool-depends: 
-        hspec-discover:hspec-discover
-    
-    other-modules:
-        AppSpec
-
-    build-depends:
-        haskell-app,
-        hspec,
-        hspec-golden,
-        hedgehog,
-        hspec-hedgehog,
-        aeson-pretty,
-        effectful
+  import:             shared-properties
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test
+  main-is:            Main.hs
+  build-tool-depends: hspec-discover:hspec-discover
+  other-modules:      AppSpec
+  build-depends:
+    , aeson-pretty
+    , effectful
+    , haskell-app
+    , hedgehog
+    , hspec
+    , hspec-golden
+    , hspec-hedgehog
