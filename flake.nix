@@ -33,7 +33,7 @@
       perSystem = { config, pkgs, system, ... }:
         let
           projectName = "haskell-app";
-          ghcVersion = "ghc9122";
+          ghcVersion = "ghc9103";
 
           hlib = pkgs.haskell.lib.compose;
           hpkgs = pkgs.haskell.packages.${ghcVersion}.override {
@@ -80,9 +80,7 @@
                 pkgs.cabal-install
                 pkgs.just
                 hpkgs.haskell-language-server
-                hpkgs.hlint
                 hpkgs.implicit-hie
-                hpkgs.fourmolu
               ];
 
               buildInputs = sysLibs;
