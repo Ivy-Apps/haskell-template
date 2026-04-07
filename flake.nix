@@ -77,8 +77,9 @@
                 nvim
                 hgold
                 pkgs.pkg-config
-                pkgs.cabal-install
                 pkgs.just
+                pkgs.cabal-install
+                pkgs.hlint
                 hpkgs.haskell-language-server
                 hpkgs.implicit-hie
               ];
