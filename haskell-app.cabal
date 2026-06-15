@@ -44,6 +44,7 @@ library
   exposed-modules:
     App
     Prelude
+
   build-depends:
     , aeson
     , containers

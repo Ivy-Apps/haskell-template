@@ -20,6 +20,12 @@ jobs:
       
       - name: 🏗️ Build
         run: nix build . --accept-flake-config
-        
+
       - name: 🧪 Test
         run: nix develop .#ci --accept-flake-config --command bash -c "cabal update && cabal test"
+
+      - name: 🎨 Format check
+        run: nix fmt --accept-flake-config -- --ci
+
+      - name: 🔍 Lint
+        run: nix run .#lint --accept-flake-config

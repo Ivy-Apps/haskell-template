@@ -4,7 +4,14 @@ default:
 
 # Run HLint then tests (use from nix develop); fails on lint or test errors
 check:
-    hlint . && cabal test all && cabal build
+    hlint .
+    nix fmt --accept-flake-config -- --ci
+    cabal test all
+    cabal build
+
+# Format Haskell, Cabal, and Nix files (fourmolu + cabal-fmt + nixfmt)
+@fmt:
+    treefmt
 
 # Update Dependencies versions by updating the Nix flake input
 @update-deps:

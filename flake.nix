@@ -16,10 +16,23 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     flake-parts.url = "github:hercules-ci/flake-parts";
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = inputs@{ self, nixpkgs, flake-parts, ... }:
+  outputs =
+    inputs@{
+      self,
+      nixpkgs,
+      flake-parts,
+      treefmt-nix,
+      ...
+    }:
     flake-parts.lib.mkFlake { inherit inputs; } {
+      imports = [ treefmt-nix.flakeModule ];
+
       systems = [
         "x86_64-linux"
         "aarch64-linux"
@@ -27,7 +40,13 @@
         "aarch64-darwin"
       ];
 
-      perSystem = { config, pkgs, system, ... }:
+      perSystem =
+        {
+          config,
+          pkgs,
+          system,
+          ...
+        }:
         let
           projectName = "haskell-app";
           ghcVersion = "ghc9103";
@@ -36,15 +55,20 @@
           hpkgs = pkgs.haskell.packages.${ghcVersion}.override {
             overrides = self: super: {
               fmt = hlib.dontCheck super.fmt;
-              ${projectName} = hlib.dontCheck (hlib.appendConfigureFlags
-                [ "--ghc-option=-optP-Wno-nonportable-include-path" ]
-                (self.callCabal2nix projectName ./. { }));
+              ${projectName} = hlib.dontCheck (
+                hlib.appendConfigureFlags [ "--ghc-option=-optP-Wno-nonportable-include-path" ] (
+                  self.callCabal2nix projectName ./. { }
+                )
+              );
             };
           };
 
           hgold = hlib.justStaticExecutables hpkgs.hspec-golden;
 
-          sysLibs = [ pkgs.zlib pkgs.xz ];
+          sysLibs = [
+            pkgs.zlib
+            pkgs.xz
+          ];
 
           # Convenience runners that delegate to the appropriate dev shell.
           aiTestRunner = pkgs.writeShellApplication {
@@ -81,10 +105,29 @@
 
         in
         {
+          # `nix fmt` / `treefmt`: format Haskell, Cabal, and Nix in one shot.
+          treefmt = {
+            projectRootFile = "flake.nix";
+            programs = {
+              fourmolu.enable = true;
+              cabal-fmt.enable = true;
+              nixfmt.enable = true;
+            };
+          };
+
           apps = {
-            test = { type = "app"; program = "${aiTestRunner}/bin/ai-test"; };
-            build = { type = "app"; program = "${aiBuildRunner}/bin/ai-build"; };
-            lint = { type = "app"; program = "${aiLintRunner}/bin/ai-lint"; };
+            test = {
+              type = "app";
+              program = "${aiTestRunner}/bin/ai-test";
+            };
+            build = {
+              type = "app";
+              program = "${aiBuildRunner}/bin/ai-build";
+            };
+            lint = {
+              type = "app";
+              program = "${aiLintRunner}/bin/ai-lint";
+            };
           };
 
           devShells = {
@@ -112,6 +155,7 @@
                 pkgs.just
                 pkgs.hlint
                 hgold
+                config.treefmt.build.wrapper
               ];
 
               buildInputs = sysLibs;

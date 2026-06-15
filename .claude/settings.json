@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(nix run .#build)",
+      "Bash(nix run .#test:*)",
+      "Bash(nix run .#lint)",
+      "Bash(nix fmt:*)",
+      "Bash(nix develop:*)",
+      "Bash(just:*)",
+      "Bash(cabal build:*)",
+      "Bash(cabal test:*)",
+      "Bash(treefmt:*)",
+      "Bash(hlint:*)"
+    ]
+  }
+}
