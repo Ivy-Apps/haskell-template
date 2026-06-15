@@ -57,3 +57,4 @@ report.html
 
 # Nix outputs
 result
+.direnv

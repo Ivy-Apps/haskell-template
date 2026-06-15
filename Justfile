@@ -4,20 +4,35 @@ default:
 
 # Run HLint then tests (use from nix develop); fails on lint or test errors
 check:
-    hlint . && cabal test all && cabal build
+    hlint .
+    just check-nix
+    nix fmt --accept-flake-config -- --ci
+    cabal test all
+    cabal build
 
-# Generate a testing '/sandbox' project dir
-@sandbox:
-    rm -rf sandbox
-    mkdir -p sandbox
-    cp -a test/fixtures/ts-project-1/. sandbox/
-    echo 'Sandbox generated ✅'
+# Lint Nix files (statix + deadnix)
+check-nix:
+    statix check .
+    deadnix --fail .
+
+# Format Haskell, Cabal, and Nix files (fourmolu + cabal-fmt + nixfmt)
+@fmt:
+    treefmt
 
 # Update Dependencies versions by updating the Nix flake input
-@update:
-    echo "Updating Nix flake inputs (pulling fresh Hackage snapshot)..."
+@update-deps:
     nix flake update
-    echo "Done! Dependencies updated and securely locked in 'flake.lock' ❄️"
+    cabal update
+    cabal freeze
+    echo "Done! Dependencies updated and securely locked in 'cabal.freeze' ❄️"
+
+# Update the HSpec Golden tests
+@update-golden:
+    rm -rf .golden/*
+    mkdir -p .golden
+    cabal test
+    hgold
+    git add .golden
 
 # Updates hie.yaml (must be in nix develop)
 @update-hie:

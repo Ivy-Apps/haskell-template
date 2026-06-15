@@ -8,7 +8,7 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     permissions:
       id-token: "write"
       contents: "read"
@@ -20,6 +20,15 @@ jobs:
       
       - name: 🏗️ Build
         run: nix build . --accept-flake-config
-        
+
       - name: 🧪 Test
         run: nix develop .#ci --accept-flake-config --command bash -c "cabal update && cabal test"
+
+      - name: 🎨 Format check
+        run: nix fmt --accept-flake-config -- --ci
+
+      - name: 🔍 Lint
+        run: nix run .#lint --accept-flake-config
+
+      - name: ❄️ Nix lint
+        run: nix develop .#default --accept-flake-config --command just check-nix

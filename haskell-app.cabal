@@ -17,14 +17,19 @@ common shared-properties
     DeriveGeneric
     DerivingStrategies
     DuplicateRecordFields
+    FlexibleContexts
     LambdaCase
     NoFieldSelectors
+    OverloadedLabels
     OverloadedRecordDot
     OverloadedStrings
     TypeApplications
     TypeFamilies
 
-  build-depends:      base >=4.18 && <5
+  mixins:             base hiding (Prelude)
+  build-depends:
+    , base    >=4.18 && <5
+    , relude
 
 executable haskell-app
   import:         shared-properties
@@ -36,7 +41,10 @@ executable haskell-app
 library
   import:          shared-properties
   hs-source-dirs:  src
-  exposed-modules: App
+  exposed-modules:
+    App
+    Prelude
+
   build-depends:
     , aeson
     , containers

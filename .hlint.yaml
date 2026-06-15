@@ -1,2 +1,16 @@
+# Parse files the same way the project compiles them (GHC2024 + extra default-extensions
+# from haskell-app.cabal), so HLint doesn't choke on e.g. OverloadedRecordDot syntax.
+- arguments:
+    - -XGHC2024
+    - -XDataKinds
+    - -XDuplicateRecordFields
+    - -XLambdaCase
+    - -XNoFieldSelectors
+    - -XOverloadedLabels
+    - -XOverloadedRecordDot
+    - -XOverloadedStrings
+    - -XTypeApplications
+    - -XTypeFamilies
+
 - ignore: {name: "Use <&>"}
 - ignore: {name: "Redundant id"}
