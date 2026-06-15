@@ -1,10 +1,10 @@
 cradle:
   cabal:
-    - path: "app/Main.hs"
+    - path: "./app/Main.hs"
       component: "haskell-app:exe:haskell-app"
 
-    - path: "src"
+    - path: "./src"
       component: "lib:haskell-app"
 
-    - path: "test"
+    - path: "./test"
       component: "haskell-app:test:haskell-app-test"

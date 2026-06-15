@@ -6,18 +6,20 @@ default:
 check:
     hlint . && cabal test all && cabal build
 
-# Generate a testing '/sandbox' project dir
-@sandbox:
-    rm -rf sandbox
-    mkdir -p sandbox
-    cp -a test/fixtures/ts-project-1/. sandbox/
-    echo 'Sandbox generated ✅'
-
 # Update Dependencies versions by updating the Nix flake input
-@update:
-    echo "Updating Nix flake inputs (pulling fresh Hackage snapshot)..."
+@update-deps:
     nix flake update
-    echo "Done! Dependencies updated and securely locked in 'flake.lock' ❄️"
+    cabal update
+    cabal freeze
+    echo "Done! Dependencies updated and securely locked in 'cabal.freeze' ❄️"
+
+# Update the HSpec Golden tests
+@update-golden:
+    rm -rf .golden/*
+    mkdir -p .golden
+    cabal test
+    hgold
+    git add .golden
 
 # Updates hie.yaml (must be in nix develop)
 @update-hie:
