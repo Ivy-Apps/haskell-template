@@ -24,8 +24,6 @@
 
   outputs =
     inputs@{
-      self,
-      nixpkgs,
       flake-parts,
       treefmt-nix,
       ...
@@ -44,7 +42,6 @@
         {
           config,
           pkgs,
-          system,
           ...
         }:
         let
@@ -154,6 +151,8 @@
                 pkgs.pkg-config
                 pkgs.just
                 pkgs.hlint
+                pkgs.statix
+                pkgs.deadnix
                 hgold
                 config.treefmt.build.wrapper
               ];

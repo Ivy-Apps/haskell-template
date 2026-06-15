@@ -29,3 +29,6 @@ jobs:
 
       - name: 🔍 Lint
         run: nix run .#lint --accept-flake-config
+
+      - name: ❄️ Nix lint
+        run: nix develop .#default --accept-flake-config --command just check-nix
