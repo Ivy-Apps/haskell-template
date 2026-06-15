@@ -5,6 +5,6 @@ import Test.Hspec
 
 spec :: Spec
 spec = do
-    describe "Dummy test suite" $ do
+    describe "AppSpec" $ do
         it "the dummyFun should return 42" $ do
             dummyFun `shouldBe` 42
