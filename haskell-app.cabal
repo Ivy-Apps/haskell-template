@@ -49,6 +49,7 @@ library
     , aeson
     , containers
     , effectful
+    , template-haskell
     , text
 
 test-suite haskell-app-test
