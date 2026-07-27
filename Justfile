@@ -4,11 +4,16 @@ default:
 
 # Run HLint then tests (use from nix develop); fails on lint or test errors
 check:
-    hlint .
+    just lint
     just check-nix
     nix fmt --accept-flake-config -- --ci
     cabal test all
     cabal build
+
+
+# Haskell lint (hlint)
+lint:
+  hlint .
 
 # Lint Nix files (statix + deadnix)
 check-nix:
