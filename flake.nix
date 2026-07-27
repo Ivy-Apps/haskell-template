@@ -26,9 +26,10 @@
   };
 
   outputs =
-    inputs@{ flake-parts
-    , treefmt-nix
-    , ...
+    inputs@{
+      flake-parts,
+      treefmt-nix,
+      ...
     }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [ treefmt-nix.flakeModule ];
@@ -41,9 +42,10 @@
       ];
 
       perSystem =
-        { config
-        , pkgs
-        , ...
+        {
+          config,
+          pkgs,
+          ...
         }:
         let
           projectName = "haskell-app";
