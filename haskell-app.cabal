@@ -57,7 +57,10 @@ test-suite haskell-app-test
   hs-source-dirs:     test
   main-is:            Main.hs
   build-tool-depends: hspec-discover:hspec-discover
-  other-modules:      AppSpec
+  other-modules:
+    AppSpec
+    TestUtils
+
   build-depends:
     , aeson-pretty
     , effectful
