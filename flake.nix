@@ -14,8 +14,11 @@
   };
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
-    flake-parts.url = "github:hercules-ci/flake-parts";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
+    flake-parts = {
+      url = "github:hercules-ci/flake-parts";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     treefmt-nix = {
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -23,10 +26,9 @@
   };
 
   outputs =
-    inputs@{
-      flake-parts,
-      treefmt-nix,
-      ...
+    inputs@{ flake-parts
+    , treefmt-nix
+    , ...
     }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [ treefmt-nix.flakeModule ];
@@ -39,10 +41,9 @@
       ];
 
       perSystem =
-        {
-          config,
-          pkgs,
-          ...
+        { config
+        , pkgs
+        , ...
         }:
         let
           projectName = "haskell-app";
