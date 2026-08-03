@@ -43,6 +43,7 @@ library
   hs-source-dirs:  src
   exposed-modules:
     App
+    Effects.System
     Prelude
 
   build-depends:
@@ -51,6 +52,7 @@ library
     , effectful
     , template-haskell
     , text
+    , unix
 
 test-suite haskell-app-test
   import:             shared-properties
@@ -60,6 +62,7 @@ test-suite haskell-app-test
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     AppSpec
+    Doubles.System
     TestUtils
 
   build-depends:
