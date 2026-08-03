@@ -8,7 +8,7 @@ import Effectful (Eff)
 import Effectful.Dispatch.Dynamic (interpret)
 import Effects.System (System (..))
 
-data MockSystem es = MockSystem
+newtype MockSystem es = MockSystem
     { mockLookupEnv :: Text -> Maybe Text
     }
 
