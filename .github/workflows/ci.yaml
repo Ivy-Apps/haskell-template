@@ -16,8 +16,11 @@ jobs:
       - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
-      - uses: DeterminateSystems/flake-checker-action@main
-      
+        with:
+          # This org is not on FlakeHub; without this the action logs a red
+          # (non-fatal) auth error. The GitHub Actions cache does the work.
+          use-flakehub: false
+
       - name: 🏗️ Build
         run: nix build . --accept-flake-config
 
