@@ -1,0 +1,22 @@
+cases:
+- measurement:
+    allocated: 4782270.177338991
+    copied: 2315.830188679245
+    cpuTime: 2.6347572855332318e-3
+    time: 2.6554659501280874e-3
+    timeStdDev: 4.738577429584626e-4
+  name: encode + decode paths
+- measurement:
+    allocated: 2836075.4705277504
+    copied: 1362.5396825396826
+    cpuTime: 1.478340374284837e-3
+    time: 1.542521303976682e-3
+    timeStdDev: 2.826015083738992e-4
+  name: encode paths
+environment:
+  arch: x86_64
+  capabilities: 4
+  ghc: '9.10'
+  os: linux
+  processors: 4
+recorded: 2026-10-22T10:15:54.393511964Z

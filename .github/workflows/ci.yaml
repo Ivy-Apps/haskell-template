@@ -6,6 +6,16 @@ on:
       - main
   pull_request:
 
+# Rapid pushes to a PR cancel the stale run. Pushes to main are never
+# cancelled, so a green main always means that exact commit passed.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Every step is a `just` recipe run in the lean `ci` dev shell, ordered
+# cheapest first so the common failures surface in seconds. The Justfile is
+# the source of truth: `just check` runs the same recipes locally.
+# See docs/adr/0001 and docs/adr/0002.
 jobs:
   check:
     runs-on: ubuntu-24.04-arm
@@ -13,7 +23,7 @@ jobs:
       id-token: "write"
       contents: "read"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
         with:
@@ -21,17 +31,35 @@ jobs:
           # (non-fatal) auth error. The GitHub Actions cache does the work.
           use-flakehub: false
 
-      - name: 🏗️ Build
-        run: nix build . --accept-flake-config
-
-      - name: 🧪 Test
-        run: nix develop .#ci --accept-flake-config --command bash -c "cabal update && cabal test"
+      - name: 🔤 Spell check
+        run: nix develop .#ci --accept-flake-config -c just typos
 
       - name: 🎨 Format check
-        run: nix fmt --accept-flake-config -- --ci
-
-      - name: 🔍 Lint
-        run: nix run .#lint --accept-flake-config
+        run: nix develop .#ci --accept-flake-config -c just fmt-check
 
       - name: ❄️ Nix lint
-        run: nix develop .#default --accept-flake-config --command just check-nix
+        run: nix develop .#ci --accept-flake-config -c just check-nix
+
+      - name: 🔍 Lint
+        run: nix develop .#ci --accept-flake-config -c just lint
+
+      - name: 🔍 Lint workflows
+        run: nix develop .#ci --accept-flake-config -c just lint-actions
+
+      # Fetches the Hackage index that `cabal.project`'s pinned index-state
+      # requires. Every later step reuses it.
+      - name: 📦 Hackage index
+        run: nix develop .#ci --accept-flake-config -c just update-index
+
+      - name: 🏗️ Build
+        run: nix develop .#ci --accept-flake-config -c just build
+
+      - name: ❄️ Nix package
+        run: nix develop .#ci --accept-flake-config -c just build-nix
+
+      # Compiled so it cannot rot, never run: see docs/adr/0004.
+      - name: ⏱️ Build benchmark
+        run: nix develop .#ci --accept-flake-config -c just build-bench
+
+      - name: 🧪 Test
+        run: nix develop .#ci --accept-flake-config -c just test

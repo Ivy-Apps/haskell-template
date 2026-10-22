@@ -2,33 +2,90 @@
 default:
     @just --list
 
-# Run HLint then tests (use from nix develop); fails on lint or test errors
+# Run the full quality suite, cheapest first (use from nix develop); mirrors CI
 check:
-    just lint
+    just typos
+    just fmt-check
     just check-nix
-    nix fmt --accept-flake-config -- --ci
-    cabal test all
-    cabal build
+    just lint
+    just lint-actions
+    just build
+    just build-nix
+    just build-bench
+    just test
 
+# Spell check every file (typos, reading .typos.toml)
+typos:
+    typos
 
-# Haskell lint (hlint)
-lint:
-  hlint .
+# Fail if any file is not formatted (fourmolu + cabal-fmt + nixfmt + typos)
+fmt-check:
+    treefmt --ci
 
 # Lint Nix files (statix + deadnix)
 check-nix:
     statix check .
     deadnix --fail .
 
-# Format Haskell, Cabal, and Nix files (fourmolu + cabal-fmt + nixfmt)
+# Haskell lint (hlint)
+lint:
+    hlint .
+
+# Lint the GitHub Actions workflows (actionlint, with shellcheck over `run:`).
+# shellcheck has to be on PATH: without it actionlint silently skips every
+# `run:` block, which is where a workflow keeps its logic. SC2153 is off
+# because shellcheck cannot see a workflow's `env:` block, so every
+# `for X in $XS` over an injected variable reads to it as a typo for the loop
+# variable. actionlint 1.7.12 disables the rule by default; until nixpkgs
+# catches up we adopt that default by hand.
+lint-actions:
+    actionlint -shellcheck="shellcheck -e SC2153"
+
+# Fetch the Hackage index that cabal.project's pinned index-state requires
+update-index:
+    cabal update
+
+# Compile the library, the executable and the tests
+build:
+    cabal build all
+
+# Build the flake's package exactly as `nix build` users and downstream flakes get it
+build-nix:
+    nix build . --accept-flake-config
+
+# Compile the benchmark without running it. CI runs this; see docs/adr/0004
+build-bench:
+    cabal build --enable-benchmarks haskell-app-bench
+
+# Run the test suite
+test:
+    cabal test all
+
+# Measure performance and fail if it regressed against bench/reference.yaml
+benchmark:
+    cabal bench haskell-app-bench
+
+# Accept the current performance as the new benchmark Reference
+update-benchmark:
+    cabal bench haskell-app-bench --benchmark-options=--update
+
+# Format Haskell, Cabal, and Nix files (fourmolu + cabal-fmt + nixfmt + typos)
 @fmt:
     treefmt
+
+# Does the project typecheck? Fast inner loop, NOT a quality gate: see `check`
+@quick-typecheck:
+    ai-quick-typecheck
+
+# Stop every background ghcid daemon behind `just quick-typecheck`
+@stop-ghcid:
+    ghcid-stop
 
 # Update Dependencies versions by updating the Nix flake input
 @update-deps:
     nix flake update
     cabal update
-    cabal freeze
+    cabal freeze --enable-tests --enable-benchmarks
     echo "Done! Dependencies updated and securely locked in 'cabal.freeze' ❄️"
 
 # Update the HSpec Golden tests
