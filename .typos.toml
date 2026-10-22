@@ -1,0 +1,22 @@
+# Committed spell-check allowlist for this repo - the only layer CI sees.
+#
+# Every entry is a genuine false positive and carries the reason it is one.
+# Before adding a word, fix the spelling if it is a real typo; allowlisting a
+# word hides it everywhere in the repo, forever. Words that must not be
+# disclosed (client names, internal codenames) belong in your private global
+# allowlist instead, never here. See docs/adr/0005-typos-two-layer-allowlist.md.
+
+[files]
+# Check dotfiles too (.github/, .claude/, .hlint.yaml), so `just typos` sees
+# the same files treefmt hands to typos.
+ignore-hidden = false
+# Git's own metadata, not ours to spell.
+extend-exclude = [".git/"]
+
+[default.extend-words]
+# `Data.Bifunctor.bimap`, re-exported by relude. Matching is case-insensitive
+# and happens after identifiers are split, so this also covers `Bimap`.
+bimap = "bimap"
+
+# The conventional qualified alias for `Data.Text.IO` (`import ... qualified as TIO`).
+tio = "tio"

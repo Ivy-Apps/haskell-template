@@ -43,33 +43,84 @@ library
   hs-source-dirs:  src
   exposed-modules:
     App
+    Effects.FileSystem
     Effects.System
+    FileSystem.Path
     Prelude
 
   build-depends:
     , aeson
     , containers
+    , directory         >=1.3.8.0
     , effectful
+    , exceptions
+    , file-io
+    , filepath          >=1.4.100.0
     , template-haskell
     , text
     , unix
 
 test-suite haskell-app-test
   import:             shared-properties
+  default-extensions:
+    QuasiQuotes
+    TemplateHaskell
+
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test
   main-is:            Main.hs
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     AppSpec
+    Doubles.FileSystem
     Doubles.System
+    Effects.FileSystemSpec
+    FileSystem.PathSpec
     TestUtils
 
   build-depends:
     , aeson-pretty
+    , bytestring
+    , containers
+    , directory       >=1.3.8.0
     , effectful
+    , file-io
+    , filepath        >=1.4.100.0
     , haskell-app
     , hedgehog
     , hspec
     , hspec-golden
     , hspec-hedgehog
+    , text
+
+-- Measures the cases in bench/Bench/Cases.hs and gates on regression against
+-- bench/reference.yaml. Local-only by design - see
+-- docs/adr/0004-benchmarks-are-local-only.md.
+benchmark haskell-app-bench
+  import:         shared-properties
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: bench
+  main-is:        Main.hs
+  other-modules:
+    Bench.Cases
+    Bench.Compare
+    Bench.Measurement
+    Bench.Reference
+    Bench.Report
+
+  -- -O2 so the measurements describe optimised codegen. -N is pinned rather
+  -- than left to the machine: a varying capability count scales wall time
+  -- directly and would show up as a phantom regression. -T is what populates
+  -- the memory metrics.
+  ghc-options:    -O2 -threaded -rtsopts "-with-rtsopts=-N4 -T"
+  build-depends:
+    , aeson
+    , bytestring
+    , criterion
+    , directory    >=1.3.8.0
+    , haskell-app
+    , statistics
+    , text
+    , time
+    , vector
+    , yaml

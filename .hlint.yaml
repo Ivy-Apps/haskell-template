@@ -11,6 +11,9 @@
     - -XOverloadedStrings
     - -XTypeApplications
     - -XTypeFamilies
+    # Default in the test suite only, but harmless to assume everywhere.
+    - -XQuasiQuotes
+    - -XTemplateHaskell
 
 - ignore: {name: "Use <&>"}
 - ignore: {name: "Redundant id"}

@@ -8,3 +8,6 @@ cradle:
 
     - path: "./test"
       component: "haskell-app:test:haskell-app-test"
+
+    - path: "./bench"
+      component: "haskell-app:bench:haskell-app-bench"
