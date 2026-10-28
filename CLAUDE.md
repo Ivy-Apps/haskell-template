@@ -106,7 +106,7 @@ nix develop .#ci -c just check
 
 Individual recipes: `just typos`, `just fmt-check`, `just check-nix`,
 `just lint`, `just lint-actions` (actionlint + shellcheck over
-`.github/workflows/`), `just build`, `just build-nix`, `just build-bench`, `just test`.
+`.github/workflows/`), `just deslop`, `just build`, `just build-nix`, `just build-bench`, `just test`.
 
 ### Updating golden tests
 
@@ -149,6 +149,23 @@ live in `bench/Bench/Cases.hs`. See
 - **`app/Main.hs`** stays a thin entry point; logic lives in the library so the
   tests can reach it.
 - **`bench/Bench/Cases.hs`** is the only project-specific benchmark module.
+
+## Architecture rules
+
+`just deslop` enforces the import rules below (`deslop/rules/`); the rest are
+on you.
+
+- **Imports point inward.** Features depend on infrastructure, never the other
+  way: `src/Effects/` and `src/FileSystem/` never name a domain type.
+- **IO only through `Effects/`.** Nothing else in the library reaches the
+  outside world, so every test can run against an in-memory double.
+- **Keep core logic and rendering pure.** Compute values and build the output
+  text in pure functions; the edge performs the IO.
+- **Test through the public interface.** Assert what a caller can observe, so
+  a refactor that keeps the behaviour keeps the tests green.
+- **Never golden a derived `Show`.** It dumps internal structure, so every
+  refactor churns the snapshot and it gets re-recorded blindly. Golden
+  user-facing output or a deliberate renderer.
 
 ## Tests
 

@@ -1,5 +1,23 @@
 # Revision history for haskell-template
 
+## 1.3.0 -- 2026-10-28
+
+* `nix run .#quick-test [-- <filter>]` (and `just quick-test`): runs the tests,
+  or only the specs a filter matches, in the warm quick-typecheck session.
+* The ghcid tooling moves to `nix/ghcid/` and grows sturdier: a session goes
+  stale when `haskell-app.cabal` changes and is never reported "All good",
+  "Ghcid has stopped." exits 2, daemons from an older version are respawned,
+  sessions compile with `-j4` and retire after 2 hours idle.
+* Builds and tests compile with `-j4`; `hlint` checks four files at a time.
+* `deslop`, the architecture checker, from its flake: `deslop/rules/` states
+  the import rules, `just deslop` checks them and runs in `just check` and CI.
+* CI runs Lint, Build and test, and Benchmark as parallel jobs sharing a cabal
+  store cache (`.github/actions/cabal-store`), behind one aggregate `Check`.
+* `Doubles.FileSystem`: an in-memory file system (`InMemoryFileSystem`) that
+  records writes by path, next to the read-only mock (`mockFileSystem` is now
+  `mockTree`, `runMockWrFileSystem` is now `runWritesInMemory`).
+* `CLAUDE.md`: the check ladder and an "Architecture rules" section.
+
 ## 1.2.0 -- 2026-10-22
 
 * `nix run .#quick-typecheck` (and `just quick-typecheck` / `just stop-ghcid`):

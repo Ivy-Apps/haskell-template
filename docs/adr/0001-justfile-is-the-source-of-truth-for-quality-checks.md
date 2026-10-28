@@ -21,8 +21,8 @@ could drift without anyone noticing.
 ## Decision
 
 The `Justfile` holds the check definitions. Each check is its own recipe
-(`typos`, `fmt-check`, `check-nix`, `lint`, `lint-actions`, `build`, `build-nix`,
-`build-bench`, `test`) and `check` is their sequence, cheapest first.
+(`typos`, `fmt-check`, `check-nix`, `lint`, `lint-actions`, `deslop`, `build`,
+`build-nix`, `build-bench`, `test`) and `check` is their sequence, cheapest first.
 
 Every CI step is `nix develop .#ci --accept-flake-config -c just <recipe>`,
 spelled out in full, one recipe per step. The steps are split across parallel

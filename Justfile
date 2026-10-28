@@ -19,6 +19,7 @@ check:
     just check-nix
     just lint
     just lint-actions
+    just deslop
     just build
     just build-nix
     just build-bench
@@ -55,6 +56,10 @@ lint-actions:
 # Fetch the Hackage index that cabal.project's pinned index-state requires
 update-index:
     cabal update
+
+# Check the architecture rules in deslop/rules/ (import direction, layering)
+deslop:
+    deslop check .
 
 # Compile the library, the executable and the tests
 build:

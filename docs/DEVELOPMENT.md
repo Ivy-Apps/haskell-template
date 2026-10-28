@@ -85,6 +85,7 @@ additional workflows (`just --list` for all of them):
 | `just check-nix` | Lint Nix files (statix + deadnix) |
 | `just lint` | hlint |
 | `just lint-actions` | Lint the GitHub workflows (actionlint + shellcheck) |
+| `just deslop` | Check the architecture rules in `deslop/rules/` |
 | `just build` / `just test` | Compile / run the test suite |
 | `just build-nix` | Build the flake package (`nix build .`) |
 | `just build-bench` | Compile the benchmark without running it |

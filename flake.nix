@@ -23,6 +23,13 @@
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # The architecture checker behind `just deslop`: its released binary, not a
+    # source build.
+    deslop = {
+      url = "github:Ivy-Apps/deslop/nix-package";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-parts.follows = "flake-parts";
+    };
   };
 
   outputs =
@@ -44,6 +51,7 @@
       perSystem =
         {
           config,
+          inputs',
           pkgs,
           ...
         }:
@@ -148,7 +156,10 @@
             # `just update-golden` stages the re-recorded snapshots.
             pkgs.git
             config.treefmt.build.wrapper
-          ];
+          ]
+          # Behind `just deslop`. deslop releases a binary for every system here
+          # but x86_64-darwin, whose shells go without it.
+          ++ pkgs.lib.optional (inputs'.deslop.packages ? deslop) inputs'.deslop.packages.deslop;
 
         in
         {

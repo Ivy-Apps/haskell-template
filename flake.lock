@@ -1,5 +1,29 @@
 {
   "nodes": {
+    "deslop": {
+      "inputs": {
+        "flake-parts": [
+          "flake-parts"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1793178014,
+        "narHash": "sha256-+vupbjj2h/fqUvk1Az00R/fvR88ZMiP1vlexUTD7zj0=",
+        "owner": "Ivy-Apps",
+        "repo": "deslop",
+        "rev": "6d77e1ae6d9ae937c3082e8f915af18298d76d01",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Ivy-Apps",
+        "ref": "nix-package",
+        "repo": "deslop",
+        "type": "github"
+      }
+    },
     "flake-parts": {
       "inputs": {
         "nixpkgs-lib": "nixpkgs-lib"
@@ -51,6 +75,7 @@
     },
     "root": {
       "inputs": {
+        "deslop": "deslop",
         "flake-parts": "flake-parts",
         "nixpkgs": "nixpkgs",
         "treefmt-nix": "treefmt-nix"

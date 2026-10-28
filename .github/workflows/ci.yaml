@@ -53,6 +53,9 @@ jobs:
       - name: 🔍 Lint workflows
         run: nix develop .#ci --accept-flake-config -c just lint-actions
 
+      - name: 🧭 Architecture
+        run: nix develop .#ci --accept-flake-config -c just deslop
+
   build-test:
     name: Build and test
     runs-on: ubuntu-24.04-arm
