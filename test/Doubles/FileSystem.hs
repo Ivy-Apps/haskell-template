@@ -2,18 +2,22 @@ module Doubles.FileSystem (
     MockRoFileSystem (..),
     defaultMockRoFileSystem,
     runMockRoFileSystem,
-    runMockWrFileSystem,
-    mockFileSystem,
+    runReadOnly,
+    runWritesInMemory,
+    mockTree,
     mockDirs,
+    InMemoryFileSystem (..),
+    newInMemoryFileSystem,
+    runInMemoryFileSystem,
 ) where
 
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
-import Effectful (Eff, IOE, (:>))
+import Effectful (Eff, IOE, runEff, (:>))
 import Effectful.Dispatch.Dynamic (interpret)
 import Effects.FileSystem (RoFileSystem (..), WrFileSystem (..))
-import FileSystem.Path (AbsPath, absPathUnsafe, decodeOsPath, encodeOsPath)
-import System.OsPath (OsPath, (</>))
+import FileSystem.Path (AbsPath (..), absPathUnsafe, decodeOsPath, encodeOsPath)
+import System.OsPath (OsPath, splitDirectories, (</>))
 
 {- | Mock implementations for every 'RoFileSystem' operation.
 
@@ -55,32 +59,36 @@ runMockRoFileSystem mocks = interpret $ \_ -> \case
     GetHomeDirectory -> mocks.mockGetHomeDirectory
     MkAbsolute p -> mocks.mockMkAbsolute p
 
-{- | Records every write in memory instead of reaching the disk, the last write
-to a path winning. Assert on the resulting map, not on which calls were made.
+-- | Runs a read-only computation over the given mocks, with nothing else in the stack.
+runReadOnly :: MockRoFileSystem '[IOE] -> Eff '[RoFileSystem, IOE] a -> IO a
+runReadOnly mocks = runEff . runMockRoFileSystem mocks
+
+{- | Every write lands in memory, keyed by the path it was written to, and
+never reaches the disk: a run can read a real fixture while what it would have
+written is asserted on instead. Writing a path again replaces what it held, as
+on disk. Directories are implied by the files beneath them, so 'MkDirP'
+records nothing.
 -}
-runMockWrFileSystem ::
+runWritesInMemory ::
     (IOE :> es) =>
     IORef (Map AbsPath ByteString) ->
     Eff (WrFileSystem : es) a ->
     Eff es a
-runMockWrFileSystem written = interpret $ \_ -> \case
-    WriteFile path content -> modifyIORef' written $ Map.insert path content
+runWritesInMemory ref = interpret $ \_ -> \case
+    WriteFile path content -> modifyIORef' ref $ Map.insert path content
     MkDirP _ -> pure ()
 
-{- | An in-memory filesystem: exactly these paths exist, holding exactly these
-bytes. A fake rather than a stub, so a component that reads several files runs
-its real codepath.
+{- | A read-only tree of files, held purely: exactly these paths exist, holding
+exactly these bytes, inside the directories the files imply. A fake rather than
+a stub, so a component that reads several files or walks a directory runs its
+real codepath, even under 'Effectful.runPureEff'.
 -}
-mockFileSystem :: [(AbsPath, ByteString)] -> MockRoFileSystem es
-mockFileSystem files =
-    defaultMockRoFileSystem
-        { mockFileExists = pure . (`Map.member` contents)
-        , mockReadFile = pure . fromMaybe mempty . (`Map.lookup` contents)
-        }
-  where
-    contents = Map.fromList files
+mockTree :: [(AbsPath, ByteString)] -> MockRoFileSystem es
+mockTree = readingFrom . pure . Map.fromList
 
--- | Exactly these directories exist, each listing exactly these entries.
+{- | Exactly these directories exist, each listing exactly these entries. Unlike
+'mockTree', a directory here may be empty.
+-}
 mockDirs :: [(AbsPath, [AbsPath])] -> MockRoFileSystem es
 mockDirs dirs =
     defaultMockRoFileSystem
@@ -89,6 +97,53 @@ mockDirs dirs =
         }
   where
     entries = Map.fromList dirs
+
+{- | A working filesystem in memory: reads see what was written, and every
+write is remembered in order, so a test can tell an untouched file from one
+rewritten with the same bytes. Directories are implied by the files beneath
+them.
+-}
+data InMemoryFileSystem = InMemoryFileSystem
+    { files :: IORef (Map AbsPath ByteString)
+    , written :: IORef [AbsPath]
+    }
+
+-- | A filesystem holding exactly these files, with nothing written yet.
+newInMemoryFileSystem :: (MonadIO m) => [(AbsPath, ByteString)] -> m InMemoryFileSystem
+newInMemoryFileSystem initial =
+    InMemoryFileSystem <$> newIORef (Map.fromList initial) <*> newIORef []
+
+-- | Interprets both effects over the given in-memory filesystem.
+runInMemoryFileSystem ::
+    (IOE :> es) =>
+    InMemoryFileSystem ->
+    Eff (WrFileSystem : RoFileSystem : es) a ->
+    Eff es a
+runInMemoryFileSystem fs = runMockRoFileSystem (readingFrom $ readIORef fs.files) . writing
+  where
+    writing = interpret $ \_ -> \case
+        WriteFile p content -> do
+            modifyIORef' fs.files $ Map.insert p content
+            modifyIORef' fs.written (<> [p])
+        MkDirP _ -> pure ()
+
+{- | Reads whatever files the action says there are, as 'mockTree' does.
+Listings come back sorted, as the IO interpreter returns them.
+-}
+readingFrom :: Eff es (Map AbsPath ByteString) -> MockRoFileSystem es
+readingFrom current =
+    defaultMockRoFileSystem
+        { mockReadFile = \p -> fromMaybe mempty . Map.lookup p <$> current
+        , mockFileExists = \p -> Map.member p <$> current
+        , mockDirectoryExists = \p -> any (isBeneath p) . Map.keys <$> current
+        , mockListDirectory = \p -> sort . ordNub . mapMaybe (childOf p) . Map.keys <$> current
+        }
+  where
+    segments = splitDirectories . (.osPath)
+    isBeneath dir file = segments dir `isPrefixOf` segments file && segments dir /= segments file
+    childOf dir file = case drop (length $ segments dir) (segments file) of
+        child : _ | isBeneath dir file -> Just . absPathUnsafe $ dir.osPath </> child
+        _ -> Nothing
 
 -- | Purely mimics OS canonicalization of @.@ and @..@ segments.
 normalizeMockPath :: OsPath -> OsPath

@@ -3,10 +3,13 @@ module Effects.FileSystemSpec (spec) where
 import Data.ByteString qualified as BS
 import Data.Map.Strict qualified as Map
 import Doubles.FileSystem (
+    InMemoryFileSystem (..),
     defaultMockRoFileSystem,
-    mockFileSystem,
-    runMockRoFileSystem,
-    runMockWrFileSystem,
+    mockTree,
+    newInMemoryFileSystem,
+    runInMemoryFileSystem,
+    runReadOnly,
+    runWritesInMemory,
  )
 import Effectful (runEff)
 import Effects.FileSystem (
@@ -50,20 +53,46 @@ spec = describe "Effects.FileSystem" $ do
 
             content `shouldSatisfy` BS.isPrefixOf "cabal-version:"
 
-    describe "the in-memory double" $ do
+    describe "the read-only tree double" $ do
         it "holds exactly the files it was given" $ do
             let file = ap "/repo/README.md"
-            let fs = mockFileSystem [(file, "# Hello")]
 
-            (exists, missing, content) <- runEff . runMockRoFileSystem fs $ do
+            result <- runReadOnly (mockTree [(file, "# Hello")]) $ do
                 (,,) <$> fsFileExists file <*> fsFileExists (ap "/repo/other.md") <*> fsReadFile file
 
-            (exists, missing, content) `shouldBe` (True, False, "# Hello")
+            result `shouldBe` (True, False, "# Hello")
 
-        it "records writes in memory, the last write to a path winning" $ do
+        it "implies the directories its files live in, but not the files themselves" $ do
+            let tree = mockTree [(ap "/repo/src/Main.hs", "")]
+
+            result <- runReadOnly tree $ do
+                (,,) <$> fsDirectoryExists (ap "/repo") <*> fsDirectoryExists (ap "/repo/src") <*> fsDirectoryExists (ap "/repo/src/Main.hs")
+
+            result `shouldBe` (True, True, False)
+
+        it "lists a directory's direct children once each, sorted" $ do
+            let tree =
+                    mockTree
+                        [ (ap "/repo/src/b/Deep.hs", "")
+                        , (ap "/repo/src/b.hs", "")
+                        , (ap "/repo/src/b/Other.hs", "")
+                        , (ap "/repo/src/a.hs", "")
+                        ]
+
+            entries <- runReadOnly tree . fsListDirectory $ ap "/repo/src"
+
+            entries `shouldBe` [ap "/repo/src/a.hs", ap "/repo/src/b", ap "/repo/src/b.hs"]
+
+        it "resolves a relative path against the home directory" $ do
+            absPath <- runReadOnly defaultMockRoFileSystem . fsMkAbsolute $ [osp|src/../app/Main.hs|]
+
+            absPath `shouldBe` ap "~/app/Main.hs"
+
+    describe "the in-memory writes double" $ do
+        it "records every written path, the last write to a path winning" $ do
             written <- newIORef mempty
 
-            runEff . runMockWrFileSystem written $ do
+            runEff . runWritesInMemory written $ do
                 fsWriteFile (ap "/repo/a.txt") "first"
                 fsWriteFile (ap "/repo/b.txt") "other"
                 fsWriteFile (ap "/repo/a.txt") "second"
@@ -71,9 +100,22 @@ spec = describe "Effects.FileSystem" $ do
             readIORef written
                 `shouldReturn` Map.fromList [(ap "/repo/a.txt", "second"), (ap "/repo/b.txt", "other")]
 
-        it "resolves a relative path against the home directory" $ do
-            absPath <- runEff . runMockRoFileSystem defaultMockRoFileSystem . fsMkAbsolute $ [osp|src/../app/Main.hs|]
+    describe "the in-memory filesystem" $ do
+        it "reads back what was written over its initial files" $ do
+            fs <- newInMemoryFileSystem [(ap "/repo/a.txt", "old"), (ap "/repo/b.txt", "kept")]
 
-            absPath `shouldBe` ap "~/app/Main.hs"
+            result <- runEff . runInMemoryFileSystem fs $ do
+                fsWriteFile (ap "/repo/a.txt") "new"
+                fsWriteFile (ap "/repo/c.txt") "added"
+                traverse fsReadFile [ap "/repo/a.txt", ap "/repo/b.txt", ap "/repo/c.txt"]
+
+            result `shouldBe` ["new", "kept", "added"]
+
+        it "tells a file rewritten with the same bytes from an untouched one" $ do
+            fs <- newInMemoryFileSystem [(ap "/repo/a.txt", "same"), (ap "/repo/b.txt", "same")]
+
+            runEff . runInMemoryFileSystem fs . fsWriteFile (ap "/repo/a.txt") $ "same"
+
+            readIORef fs.written `shouldReturn` [ap "/repo/a.txt"]
   where
     ap = absPathUnsafe . encodeOsPath
