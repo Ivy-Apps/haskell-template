@@ -1,0 +1,64 @@
+id: architecture
+name: Architecture rules
+description: >-
+  The rules in CLAUDE.md's "Architecture rules", stated over Haskell module
+  names spelled with slashes. A rule about the library targets it through its
+  component-qualified name, lib/<package>/..., so a test module named after
+  one is never mistaken for it.
+rules:
+  # Two rules, one per infrastructure directory: a target has no
+  # alternation. The second repeats the first's clauses through YAML anchors.
+  - id: effects-are-domain-free
+    description: &infra-description >-
+      Infrastructure - the effects under Effects/ and the path vocabulary
+      under FileSystem/ - names nothing from the domain, so every layer above
+      may use it. Imports point inward, towards it.
+    target: "lib/*/Effects/**"
+    forbids: &infra-forbids
+      - import: "lib/*/**"
+    allows: &infra-allows
+      - import: "lib/*/Effects/**"
+      - import: "lib/*/FileSystem/**"
+      - import: "lib/*/Prelude"
+    fix: &infra-fix >-
+      Move what knows the domain out of the infrastructure, into the feature
+      that uses it, and keep the infrastructure generic.
+
+  - id: filesystem-is-domain-free
+    description: *infra-description
+    target: "lib/*/FileSystem/**"
+    forbids: *infra-forbids
+    allows: *infra-allows
+    fix: *infra-fix
+
+  - id: io-only-through-effects
+    description: >-
+      Library code reaches the outside world only through an effect under
+      Effects/, so the tests can swap in an in-memory double.
+    target: "lib/*/**"
+    exclude:
+      - "lib/*/Effects/**"
+    forbids:
+      - import: "System/IO/**"
+      - import: "System/Directory/**"
+      - import: "System/File/**"
+      - import: "System/Environment/**"
+      - import: "System/Process/**"
+      - import: "Data/Text/IO"
+      - import: "Network/**"
+    fix: >-
+      Declare an effect under Effects/ with an IO interpreter, use it here,
+      and give the tests a double under test/Doubles/.
+
+  - id: test-helpers-stay-in-tests
+    description: >-
+      Test doubles and test utilities exist for the test suite only.
+    target: "**"
+    exclude:
+      - "test/**"
+    forbids:
+      - import: "Doubles/**"
+      - import: "TestUtils"
+    fix: >-
+      Import the helper from a test module only, or promote what production
+      code needs into src/.

@@ -1,0 +1,14 @@
+name: Nix
+description: >-
+  Installs Nix and backs its store with the GitHub Actions cache. Every job
+  runs this first, after checking out the repository that holds it.
+
+runs:
+  using: composite
+  steps:
+    - uses: DeterminateSystems/nix-installer-action@main
+    - uses: DeterminateSystems/magic-nix-cache-action@main
+      with:
+        # This org is not on FlakeHub; without this the action logs a red
+        # (non-fatal) auth error. The GitHub Actions cache does the work.
+        use-flakehub: false
