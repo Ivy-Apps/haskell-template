@@ -22,6 +22,7 @@ import Effects.FileSystem (
     runRoFileSystemIO,
  )
 import FileSystem.Path (AbsPath (..), absPathUnsafe, encodeOsPath)
+import System.IO.Error (isDoesNotExistError)
 import System.OsPath (isAbsolute, osp)
 import Test.Hspec
 
@@ -52,6 +53,16 @@ spec = describe "Effects.FileSystem" $ do
             content <- runEff . runRoFileSystemIO $ fsReadFile =<< fsMkAbsolute [osp|haskell-app.cabal|]
 
             content `shouldSatisfy` BS.isPrefixOf "cabal-version:"
+
+        it "fails to read a missing file" $ do
+            let reading = runEff . runRoFileSystemIO $ fsReadFile =<< fsMkAbsolute [osp|no-such-file|]
+
+            reading `shouldThrow` isDoesNotExistError
+
+        it "fails to list a missing directory" $ do
+            let listing = runEff . runRoFileSystemIO $ fsListDirectory =<< fsMkAbsolute [osp|no-such-dir|]
+
+            listing `shouldThrow` isDoesNotExistError
 
     describe "the read-only tree double" $ do
         it "holds exactly the files it was given" $ do
@@ -117,5 +128,17 @@ spec = describe "Effects.FileSystem" $ do
             runEff . runInMemoryFileSystem fs . fsWriteFile (ap "/repo/a.txt") $ "same"
 
             readIORef fs.written `shouldReturn` [ap "/repo/a.txt"]
+
+        it "fails to read a missing file, as the IO interpreter does" $ do
+            fs <- newInMemoryFileSystem [(ap "/repo/a.txt", "")]
+
+            runEff (runInMemoryFileSystem fs . fsReadFile $ ap "/repo/b.txt")
+                `shouldThrow` isDoesNotExistError
+
+        it "fails to list a missing directory, as the IO interpreter does" $ do
+            fs <- newInMemoryFileSystem [(ap "/repo/a.txt", "")]
+
+            runEff (runInMemoryFileSystem fs . fsListDirectory $ ap "/other")
+                `shouldThrow` isDoesNotExistError
   where
     ap = absPathUnsafe . encodeOsPath

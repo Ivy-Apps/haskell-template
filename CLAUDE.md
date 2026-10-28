@@ -159,6 +159,8 @@ on you.
   way: `src/Effects/` and `src/FileSystem/` never name a domain type.
 - **IO only through `Effects/`.** Nothing else in the library reaches the
   outside world, so every test can run against an in-memory double.
+- **Test helpers stay in tests.** Nothing under `src/`, `app/` or `bench/`
+  imports a test double or test utility (`Doubles.*`, `TestUtils`).
 - **Keep core logic and rendering pure.** Compute values and build the output
   text in pure functions; the edge performs the IO.
 - **Test through the public interface.** Assert what a caller can observe, so

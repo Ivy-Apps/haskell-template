@@ -15,8 +15,10 @@ import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Effectful (Eff, IOE, runEff, (:>))
 import Effectful.Dispatch.Dynamic (interpret)
+import Effectful.Exception (throwIO)
 import Effects.FileSystem (RoFileSystem (..), WrFileSystem (..))
 import FileSystem.Path (AbsPath (..), absPathUnsafe, decodeOsPath, encodeOsPath)
+import System.IO.Error (doesNotExistErrorType, mkIOError)
 import System.OsPath (OsPath, splitDirectories, (</>))
 
 {- | Mock implementations for every 'RoFileSystem' operation.
@@ -128,22 +130,36 @@ runInMemoryFileSystem fs = runMockRoFileSystem (readingFrom $ readIORef fs.files
         MkDirP _ -> pure ()
 
 {- | Reads whatever files the action says there are, as 'mockTree' does.
-Listings come back sorted, as the IO interpreter returns them.
+Listings come back sorted, as the IO interpreter returns them. Reading a
+missing file or listing a missing directory throws the 'IOError' the IO
+interpreter throws, one satisfying 'System.IO.Error.isDoesNotExistError'.
+Listing a file throws that same error, where the OS reports an inappropriate
+type: no caller tells the two apart yet.
 -}
 readingFrom :: Eff es (Map AbsPath ByteString) -> MockRoFileSystem es
 readingFrom current =
     defaultMockRoFileSystem
-        { mockReadFile = \p -> fromMaybe mempty . Map.lookup p <$> current
+        { mockReadFile = \p -> maybe (doesNotExist "readFile" p) pure . Map.lookup p =<< current
         , mockFileExists = \p -> Map.member p <$> current
         , mockDirectoryExists = \p -> any (isBeneath p) . Map.keys <$> current
-        , mockListDirectory = \p -> sort . ordNub . mapMaybe (childOf p) . Map.keys <$> current
+        , mockListDirectory = \p -> listing p . Map.keys =<< current
         }
   where
+    -- Directories are implied by the files beneath them, so one without
+    -- children does not exist.
+    listing dir files = case ordNub $ mapMaybe (childOf dir) files of
+        [] -> doesNotExist "listDirectory" dir
+        children -> pure $ sort children
     segments = splitDirectories . (.osPath)
     isBeneath dir file = segments dir `isPrefixOf` segments file && segments dir /= segments file
     childOf dir file = case drop (length $ segments dir) (segments file) of
         child : _ | isBeneath dir file -> Just . absPathUnsafe $ dir.osPath </> child
         _ -> Nothing
+
+-- | The error the OS raises for a path that is not there.
+doesNotExist :: String -> AbsPath -> Eff es a
+doesNotExist operation path =
+    throwIO . mkIOError doesNotExistErrorType operation Nothing . Just . toString . decodeOsPath $ path.osPath
 
 -- | Purely mimics OS canonicalization of @.@ and @..@ segments.
 normalizeMockPath :: OsPath -> OsPath
