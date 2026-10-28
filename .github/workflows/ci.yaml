@@ -26,12 +26,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v7
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
-        with:
-          # This org is not on FlakeHub; without this the action logs a red
-          # (non-fatal) auth error. The GitHub Actions cache does the work.
-          use-flakehub: false
+      - uses: ./.github/actions/nix
 
       # Realises the `ci` dev shell, so its one-off cost is not billed to the
       # first lint step. The linters need no cabal, so no Hackage index.
@@ -64,10 +59,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v7
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
-        with:
-          use-flakehub: false
+      - uses: ./.github/actions/nix
 
       - name: 📦 Toolchain and cabal store
         uses: ./.github/actions/cabal-store
@@ -94,10 +86,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v7
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
-        with:
-          use-flakehub: false
+      - uses: ./.github/actions/nix
 
       - name: 📦 Toolchain and cabal store
         uses: ./.github/actions/cabal-store
