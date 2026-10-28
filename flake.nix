@@ -26,7 +26,7 @@
     # The architecture checker behind `just deslop`: its released binary, not a
     # source build.
     deslop = {
-      url = "github:Ivy-Apps/deslop/nix-package";
+      url = "github:Ivy-Apps/deslop";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-parts.follows = "flake-parts";
     };

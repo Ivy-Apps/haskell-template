@@ -10,16 +10,15 @@
         ]
       },
       "locked": {
-        "lastModified": 1793178014,
-        "narHash": "sha256-+vupbjj2h/fqUvk1Az00R/fvR88ZMiP1vlexUTD7zj0=",
+        "lastModified": 1793187024,
+        "narHash": "sha256-Zahc/v8ExbHieKX4mOjRPaaUTU/C6vqpSJQgywlg/QY=",
         "owner": "Ivy-Apps",
         "repo": "deslop",
-        "rev": "6d77e1ae6d9ae937c3082e8f915af18298d76d01",
+        "rev": "0c9bfca36182bb99bea60d4c629c535cd9b74241",
         "type": "github"
       },
       "original": {
         "owner": "Ivy-Apps",
-        "ref": "nix-package",
         "repo": "deslop",
         "type": "github"
       }
