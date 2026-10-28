@@ -12,16 +12,18 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# Every step is a `just` recipe run in the lean `ci` dev shell, ordered
-# cheapest first so the common failures surface in seconds. The Justfile is
-# the source of truth: `just check` runs the same recipes locally.
-# See docs/adr/0001 and docs/adr/0002.
+# Three independent jobs run in parallel, and `Check` gathers them into the one
+# status a branch ruleset can require. Every step is a `just` recipe run in the
+# lean `ci` dev shell, and between them the jobs run every `just check` recipe,
+# so a red run names the stage that failed. A recipe added to `check` must be
+# added to one of these jobs too. See docs/adr/0001 and docs/adr/0002.
 jobs:
-  check:
+  lint:
+    name: Lint
     runs-on: ubuntu-24.04-arm
     permissions:
-      id-token: "write"
-      contents: "read"
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v7
       - uses: DeterminateSystems/nix-installer-action@main
@@ -30,6 +32,11 @@ jobs:
           # This org is not on FlakeHub; without this the action logs a red
           # (non-fatal) auth error. The GitHub Actions cache does the work.
           use-flakehub: false
+
+      # Realises the `ci` dev shell, so its one-off cost is not billed to the
+      # first lint step. The linters need no cabal, so no Hackage index.
+      - name: ❄️ Toolchain
+        run: nix develop .#ci --accept-flake-config -c true
 
       - name: 🔤 Spell check
         run: nix develop .#ci --accept-flake-config -c just typos
@@ -46,10 +53,23 @@ jobs:
       - name: 🔍 Lint workflows
         run: nix develop .#ci --accept-flake-config -c just lint-actions
 
-      # Fetches the Hackage index that `cabal.project`'s pinned index-state
-      # requires. Every later step reuses it.
-      - name: 📦 Hackage index
-        run: nix develop .#ci --accept-flake-config -c just update-index
+  build-test:
+    name: Build and test
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+        with:
+          use-flakehub: false
+
+      - name: 📦 Toolchain and cabal store
+        uses: ./.github/actions/cabal-store
+        with:
+          name: build-test
 
       - name: 🏗️ Build
         run: nix develop .#ci --accept-flake-config -c just build
@@ -57,9 +77,51 @@ jobs:
       - name: ❄️ Nix package
         run: nix develop .#ci --accept-flake-config -c just build-nix
 
-      # Compiled so it cannot rot, never run: see docs/adr/0004.
+      - name: 🧪 Test
+        run: nix develop .#ci --accept-flake-config -c just test
+
+  # Compiled so it cannot rot, never run: see docs/adr/0004. A job of its own
+  # because it is the longest single compile, with its own store key because
+  # its dependencies differ.
+  bench:
+    name: Benchmark
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+        with:
+          use-flakehub: false
+
+      - name: 📦 Toolchain and cabal store
+        uses: ./.github/actions/cabal-store
+        with:
+          name: bench
+
       - name: ⏱️ Build benchmark
         run: nix develop .#ci --accept-flake-config -c just build-bench
 
-      - name: 🧪 Test
-        run: nix develop .#ci --accept-flake-config -c just test
+  # The status check to require: green only when every job above succeeded.
+  # `always()` makes it report even when one failed or was skipped, because a
+  # required check that never reports blocks the merge without saying why.
+  check:
+    name: Check
+    needs: [lint, build-test, bench]
+    if: always()
+    runs-on: ubuntu-24.04-arm
+    permissions: {}
+    steps:
+      - name: ✅ Every job passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          for result in $RESULTS; do
+            if [ "$result" != success ]; then
+              echo "A required job ended '$result'."
+              exit 1
+            fi
+          done

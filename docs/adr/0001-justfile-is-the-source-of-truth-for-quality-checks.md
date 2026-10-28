@@ -25,7 +25,9 @@ The `Justfile` holds the check definitions. Each check is its own recipe
 `build-bench`, `test`) and `check` is their sequence, cheapest first.
 
 Every CI step is `nix develop .#ci --accept-flake-config -c just <recipe>`,
-spelled out in full, one recipe per step, in the same order as `check`.
+spelled out in full, one recipe per step. The steps are split across parallel
+jobs (lint, build and test, benchmark), each in `check`'s order, and an
+aggregate `Check` job reports one status for all of them.
 
 The flake's apps remain the documented agent-facing entry points. They are
 convenience wrappers, not the definition of a check.
@@ -50,10 +52,10 @@ If the per-step cost ever becomes material, the maintained
 
 - `just check` locally and the CI workflow cannot drift: editing a recipe
   changes both.
-- Steps fail in cost order: spelling, formatting and lints, then compilation,
-  then tests.
-- Anyone adding a new check adds a recipe, adds it to `check`, and adds a CI
-  step for it. They wire a flake app only if agents need it.
+- Within a job, steps fail in cost order: spelling, formatting and lints,
+  then compilation, then tests.
+- Anyone adding a new check adds a recipe, adds it to `check`, and adds a step
+  for it to one CI job. They wire a flake app only if agents need it.
 - Two entry points for the same work still exist (`nix run .#test` vs
   `just test`). This ADR fixes which one is authoritative.
 - The one deliberate exception is the benchmark, which CI compiles but never
