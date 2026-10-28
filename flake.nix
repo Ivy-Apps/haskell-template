@@ -71,17 +71,21 @@
           ];
 
           # Convenience runners that delegate to the appropriate dev shell.
+          # They compile with the Justfile's `parallel` -j4, for the same
+          # reasons; keep the two in step.
+          parallel = "--ghc-options=-j4";
+
           aiTestRunner = pkgs.writeShellApplication {
             name = "ai-test";
             runtimeInputs = [ pkgs.nix ];
             text = ''
               if [ "$#" -eq 0 ]; then
                 nix develop ".#ci" --no-warn-dirty --quiet -c \
-                  cabal test -v0 --test-show-details=direct \
+                  cabal test ${parallel} -v0 --test-show-details=direct \
                   --test-options="--no-color"
               else
                 nix develop ".#ci" --no-warn-dirty --quiet -c \
-                  cabal test -v0 --test-show-details=direct \
+                  cabal test ${parallel} -v0 --test-show-details=direct \
                   "--test-options=--no-color --match $*"
               fi
             '';
@@ -91,7 +95,7 @@
             name = "ai-build";
             runtimeInputs = [ pkgs.nix ];
             text = ''
-              nix develop ".#ci" --no-warn-dirty --quiet -c cabal build
+              nix develop ".#ci" --no-warn-dirty --quiet -c cabal build ${parallel}
             '';
           };
 
@@ -120,9 +124,12 @@
             '';
           };
 
-          # The ghcid daemon behind `nix run .#quick-typecheck`, and the tool
-          # `just stop-ghcid` uses to retire every session on the machine.
-          ghcidTools = import ./nix/ghcid.nix { inherit pkgs projectName; };
+          # The ghcid daemon behind `nix run .#quick-typecheck` and
+          # `nix run .#quick-test`, and the tool `just stop-ghcid` uses to
+          # retire every session on the machine.
+          ghcidTools = import ./nix/ghcid {
+            inherit pkgs projectName parallel;
+          };
 
           # Everything a `just` recipe that CI calls needs, and nothing else.
           # Shared by both shells so a recipe never works in one and not the
@@ -177,6 +184,10 @@
               type = "app";
               program = "${ghcidTools.quickTypecheck}/bin/ai-quick-typecheck";
             };
+            quick-test = {
+              type = "app";
+              program = "${ghcidTools.quickTest}/bin/ai-quick-test";
+            };
             update-golden = {
               type = "app";
               program = "${aiUpdateGoldenRunner}/bin/ai-update-golden";
@@ -213,11 +224,13 @@
                 # ghcid by store path and does not need it here. Kept out of the
                 # `ci` shell so CI never realises this closure.
                 pkgs.ghcid
-                # Behind `just quick-typecheck` and `just stop-ghcid`. The app
-                # under `nix run .#quick-typecheck` is the same program; having
-                # it here lets the recipe call it directly, as every other
-                # recipe calls its tool, and skips a flake evaluation per check.
+                # Behind `just quick-typecheck`, `just quick-test` and
+                # `just stop-ghcid`. The apps under `nix run` are the same
+                # programs; having them here lets the recipes call them
+                # directly, as every other recipe calls its tool, and skips a
+                # flake evaluation per check.
                 ghcidTools.quickTypecheck
+                ghcidTools.quickTest
                 ghcidTools.stop
               ]
               ++ checkTools;

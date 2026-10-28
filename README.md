@@ -37,7 +37,9 @@ canonical command reference used by AI tooling.
 - **Benchmarks** with `criterion` and a regression gate against a committed
   `bench/reference.yaml`. Local-only: CI compiles them but never runs them.
 - **Agent-friendly fast feedback.** `nix run .#quick-typecheck` keeps a warm
-  `ghcid` session and answers "does this typecheck" in about a second.
+  `ghcid` session and answers "does this typecheck" in about a second, and
+  `nix run .#quick-test -- <filter>` runs the selected specs in that same
+  session.
 - **direnv.** `.envrc` (`use flake`) auto-loads the dev shell.
 
 ## Project layout
@@ -51,7 +53,7 @@ src/Prelude.hs         -- custom relude-based prelude
 test/                  -- hspec specs mirroring src/ (auto-discovered)
 test/Doubles/          -- test doubles for the effects
 bench/                 -- criterion benchmark + bench/reference.yaml
-nix/ghcid.nix          -- the ghcid daemon behind quick-typecheck
+nix/ghcid/             -- the ghcid daemon behind quick-typecheck and quick-test
 docs/                  -- DEVELOPMENT.md and architecture decision records
 haskell-app.cabal      -- package definition
 cabal.project(.freeze) -- Cabal pins (index-state + frozen versions)
@@ -87,6 +89,7 @@ From inside the dev shell (`just --list` shows them all):
 | Benchmark              | `just benchmark` / `just update-benchmark`|
 | Compile the benchmark  | `just build-bench`                        |
 | Quick typecheck        | `just quick-typecheck` / `just stop-ghcid`|
+| Quick test             | `just quick-test [filter]`                |
 | Update deps            | `just update-deps`                        |
 | Update golden          | `just update-golden`                      |
 | Regenerate `hie`       | `just update-hie`                         |
@@ -100,6 +103,7 @@ what AI tooling uses, see [`CLAUDE.md`](./CLAUDE.md)):
 | Test            | `nix run .#test` (or `-- AppSpec`)     |
 | Lint            | `nix run .#lint` (hlint + typos)       |
 | Quick typecheck | `nix run .#quick-typecheck`            |
+| Quick test      | `nix run .#quick-test` (or `-- AppSpec`) |
 | Update golden   | `nix run .#update-golden`              |
 
 ## How dependency pinning works

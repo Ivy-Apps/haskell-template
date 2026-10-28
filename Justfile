@@ -1,3 +1,13 @@
+# Compile modules in parallel: GHC builds one at a time otherwise. Bounded at
+# four rather than every core, so a many-core machine does not multiply the
+# memory one build needs. Passed here, not set in cabal.project, so it stays out
+# of the ghcid session's unit files (see nix/ghcid/session.nix). Cabal leaves
+# `-j` out of its change detection, so a build with it and one without reuse
+# each other's dist-newstyle. The Nix build passes its own -j. flake.nix repeats
+# this for `nix run .#build`, `nix run .#test` and `nix run .#quick-test`; keep
+# the two in step.
+parallel := "--ghc-options=-j4"
+
 # By default, list all available commands
 default:
     @just --list
@@ -27,9 +37,10 @@ check-nix:
     statix check .
     deadnix --fail .
 
-# Haskell lint (hlint)
+# Haskell lint (hlint). -j4 checks four files at a time, with the same output
+# as a serial run; bounded at four like `parallel`.
 lint:
-    hlint .
+    hlint -j4 .
 
 # Lint the GitHub Actions workflows (actionlint, with shellcheck over `run:`).
 # shellcheck has to be on PATH: without it actionlint silently skips every
@@ -47,7 +58,7 @@ update-index:
 
 # Compile the library, the executable and the tests
 build:
-    cabal build all
+    cabal build all {{parallel}}
 
 # Build the flake's package exactly as `nix build` users and downstream flakes get it
 build-nix:
@@ -55,11 +66,11 @@ build-nix:
 
 # Compile the benchmark without running it. CI runs this; see docs/adr/0004
 build-bench:
-    cabal build --enable-benchmarks haskell-app-bench
+    cabal build --enable-benchmarks haskell-app-bench {{parallel}}
 
 # Run the test suite
 test:
-    cabal test all
+    cabal test all {{parallel}}
 
 # Measure performance and fail if it regressed against bench/reference.yaml
 benchmark:
@@ -77,7 +88,12 @@ update-benchmark:
 @quick-typecheck:
     ai-quick-typecheck
 
-# Stop every background ghcid daemon behind `just quick-typecheck`
+# Do the tests pass? Optionally filtered: `just quick-test FileSystem.Path`. Fast
+# inner loop in the quick-typecheck session, NOT a quality gate: see `check`
+@quick-test *filter:
+    ai-quick-test {{filter}}
+
+# Stop every background ghcid daemon behind `just quick-typecheck` and `just quick-test`
 @stop-ghcid:
     ghcid-stop
 

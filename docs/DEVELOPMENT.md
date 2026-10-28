@@ -68,9 +68,11 @@ nix run .#test -- FileSystem.Path
 ```
 
 While iterating, `nix run .#quick-typecheck` answers "does this typecheck" in
-about a second by keeping a warm `ghcid` session. It is an inner loop, not a
-gate: it does not run tests, lint or link. You are not done until `build`,
-`test` and `lint` pass.
+about a second by keeping a warm `ghcid` session, and
+`nix run .#quick-test -- FileSystem.Path` runs the selected specs in that same
+session (with no filter, it runs the compiled suite). They are an inner loop,
+not a gate: they do not lint, link or optimise. You are not done until
+`just check` passes.
 
 Inside `nix develop`, [`just`](https://github.com/casey/just) provides
 additional workflows (`just --list` for all of them):
@@ -89,6 +91,7 @@ additional workflows (`just --list` for all of them):
 | `just benchmark` | Measure performance; fails on regression against `bench/reference.yaml` |
 | `just update-benchmark` | Accept the current numbers into `bench/reference.yaml` |
 | `just quick-typecheck` / `just stop-ghcid` | The warm ghcid typecheck / stop every ghcid daemon |
+| `just quick-test [filter]` | Run the specs in the warm ghcid session |
 | `just update-golden` | Re-record the hspec-golden snapshots in `.golden/` |
 | `just update-deps` | Update the Nix flake inputs and re-freeze cabal dependencies |
 | `just update-hie` | Regenerate `hie.yaml` |

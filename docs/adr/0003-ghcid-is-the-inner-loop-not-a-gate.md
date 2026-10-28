@@ -25,13 +25,13 @@ that can be read as ordinary text rather than scraped from a TUI.
 
 `nix run .#quick-typecheck` is the inner loop. It answers exactly one question,
 "does the project typecheck", and it is never sufficient on its own.
-`nix run .#build`, `nix run .#test` and `nix run .#lint` remain the gates, and
-`CLAUDE.md` says so at the point where the command is introduced.
+`just check` remains the gate, and `CLAUDE.md` says so at the point where the command is introduced.
 
-The implementation lives in `nix/ghcid.nix`, parameterised by the project name
+The implementation lives in `nix/ghcid/`, parameterised by the project name
 (from which the components, cabal files and cache namespace default). It is
-three small programs composed in Nix rather than one script with a subcommand
-dispatcher: `ai-quick-typecheck`, `ghcid-stop` and an internal watchdog. What
+small programs composed in Nix rather than one script with a subcommand
+dispatcher: `ai-quick-typecheck`, `ai-quick-test` (see the addendum below),
+`ghcid-stop` and an internal watchdog. What
 the session covers, which files force a restart, and every timing constant are
 Nix values, so the shell is left with control flow and nothing else.
 
@@ -80,15 +80,23 @@ every PID before signalling any, and follows `TERM` with `KILL`.
 
 The dangerous failure is not latency, it is a stale verdict. If the daemon was
 never started, died, or belongs to another worktree, the outputfile may still
-say `All good`. `quick-typecheck` therefore refuses to report until no `.hs` or
-cabal file is newer than the outputfile, and gives up loudly rather than
-reporting anything at all. Stale green is made structurally impossible rather
+say `All good`. `quick-typecheck` therefore refuses to report until no `.hs`
+file is newer than the outputfile, and gives up loudly rather than reporting
+anything at all. Cabal files are judged against the start of the session
+instead: ghcid can reload a module edited alongside the `.cabal` file, and
+rewrite the outputfile, before it restarts for the cabal edit. So every session
+stamps a file before `cabal repl` reads the cabal files, and a verdict counts
+only if it is newer than that stamp and the stamp is newer than every cabal
+file. A daemon started by an older version of the tool, whose session may not
+write that stamp, is respawned rather than waited on. Stale green is made structurally impossible rather
 than merely unlikely.
 
 The wait ends early, with exit code 2 and a reason, when no answer is coming:
 the daemon exited (the end of its log is printed), or it is alive but has not
 rewritten its verdict while an input is still newer, which is what an
-unregistered new module looks like.
+unregistered new module looks like. ghcid also exits when `cabal repl` does,
+leaving only "Ghcid has stopped." in the outputfile, so that line is never read
+as a verdict.
 
 `coreutils` and `findutils` are pinned in the scripts' `runtimeInputs`: inside
 the dev shell a GNU `stat` shadows the BSD one on macOS, and the freshness check
@@ -122,8 +130,55 @@ worktrees is preserved by the key, nothing is added to `.gitignore`, and
 
 - Agents get a typecheck verdict in about a second instead of a full build.
 - A live session holds hundreds of MB resident, per worktree. A watchdog stops
-  the daemon after 30 minutes idle, because nothing else reliably would.
+  the daemon after 2 hours idle, because nothing else reliably would.
 - The first `nix run .#quick-typecheck` of a session pays for loading the repl.
 - `quick-typecheck` reports only what `ghci` can see: no optimisation, no link
   errors, no test results, no `hlint`, and no benchmark.
 - CI is untouched by this: no workflow calls the app.
+
+## Addendum: quick-test runs in the same session
+
+`nix run .#test -- <filter>` after an edit spends nearly all its time in cabal
+recompiling and relinking, not in the filtered specs. `nix run .#quick-test
+[-- <filter>]` runs the hspec suite inside the quick-typecheck session instead,
+so a filtered run costs a reload.
+
+It shares the daemon rather than starting a second one, because a session
+holds hundreds of MB and agents run several worktrees at once. ghcid takes no
+commands once running, so a run is requested through files in the daemon's
+state directory and served by ghcid's `--test` hook, which runs after every
+successful load. The protocol is in `nix/ghcid/test-hook.nix`.
+
+Two constraints of GHC 9.10's multi-unit GHCi shape the hook. It evaluates
+expressions in the first unit only, so the test suite is listed first; listed
+after the library, hspec and `Main.spec` (which hspec-discover generates) are
+out of scope. And it refuses `:script`, `:module` and `:main`, so the hook is
+one Haskell expression with every name fully qualified.
+
+With no filter, `quick-test` runs the compiled suite through `cabal test` after
+the session's typecheck: the whole suite runs several times slower
+interpreted, which outweighs the build.
+
+No test may spawn the project's executable. A `build-tool-depends` on it makes
+`cabal repl` build the executable before the session can load, which breaks
+`quick-typecheck` on a fresh checkout.
+
+## Addendum: parallel builds and a longer-lived session
+
+`just build`, `just test`, `just build-bench` and the `nix run .#build`,
+`.#test` and `.#quick-test` runners compile with `-j4`, and `just lint` runs
+`hlint -j4`. Bounded at four rather than every core, so a many-core machine
+does not multiply the memory one build needs.
+
+The session loads with `cabal repl --jobs=4`. A multi-repl hands GHC cabal's
+own job count, every core under `jobs: $ncpus`, which `--repl-options=-j1`
+cannot override. A package's `ghc-options` land in every unit file after
+`--repl-options`, so the build's `-j4` is passed on the Justfile's command line
+(and repeated in `flake.nix`) rather than set in `cabal.project`. Cabal leaves
+both out of its change detection, so the session, `just build` and `just test`
+reuse one dist-newstyle.
+
+A parallel load holds a little more memory for the session's life in exchange
+for a faster cold spawn, and the watchdog now retires a session after 2 hours
+idle instead of 30 minutes: agents that came back to a worktree within the
+hour kept paying for a cold spawn.
