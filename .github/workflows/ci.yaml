@@ -25,7 +25,9 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/nix
 
       # Realises the `ci` dev shell, so its one-off cost is not billed to the
@@ -48,6 +50,9 @@ jobs:
       - name: 🔍 Lint workflows
         run: nix develop .#ci --accept-flake-config -c just lint-actions
 
+      - name: 🛡️ Audit workflows
+        run: nix develop .#ci --accept-flake-config -c just zizmor
+
       - name: 🧭 Architecture
         run: nix develop .#ci --accept-flake-config -c just deslop
 
@@ -58,7 +63,9 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/nix
 
       - name: 📦 Toolchain and cabal store
@@ -85,7 +92,9 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/nix
 
       - name: 📦 Toolchain and cabal store

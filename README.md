@@ -86,6 +86,7 @@ From inside the dev shell (`just --list` shows them all):
 | Spell check            | `just typos`                              |
 | Format / check format  | `just fmt` / `just fmt-check`             |
 | Lint workflows         | `just lint-actions`                       |
+| Audit workflows        | `just zizmor`                             |
 | Architecture rules     | `just deslop`                             |
 | Benchmark              | `just benchmark` / `just update-benchmark`|
 | Compile the benchmark  | `just build-bench`                        |

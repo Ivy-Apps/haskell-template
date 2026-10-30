@@ -1,0 +1,7 @@
+# Every action is pinned to a commit. Say so here, so a later zizmor default
+# cannot quietly let one back onto a tag.
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        "*": hash-pin

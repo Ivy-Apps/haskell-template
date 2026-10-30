@@ -24,9 +24,9 @@ Every CI step, and every flake app that runs a check (`build`, `test`, `lint`,
 
 The `ci` shell carries exactly the tools the recipes CI calls need: `just`,
 `hlint`, `typos`, `statix`, `deadnix`, the treefmt wrapper (fourmolu,
-cabal-fmt, nixfmt, typos), `actionlint` with `shellcheck`, and `git`. These are
-defined once as `checkTools` in `flake.nix` and added to both shells, so a
-recipe never works in one shell and not the other.
+cabal-fmt, nixfmt, typos), `actionlint` with `shellcheck`, `zizmor`, and `git`.
+These are defined once as `checkTools` in `flake.nix` and added to both shells,
+so a recipe never works in one shell and not the other.
 
 A tool only one flake app needs is carried in that app's `runtimeInputs`
 instead of the shell: `hspec-golden` rides with `update-golden`, `ghcid` with
