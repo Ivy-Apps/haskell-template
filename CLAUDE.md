@@ -106,7 +106,7 @@ nix develop .#ci -c just check
 
 Individual recipes: `just typos`, `just fmt-check`, `just check-nix`,
 `just lint`, `just lint-actions` (actionlint + shellcheck over
-`.github/workflows/`), `just deslop`, `just build`, `just build-nix`, `just build-bench`, `just test`.
+`.github/workflows/`), `just zizmor` (security audit of `.github`), `just deslop`, `just build`, `just build-nix`, `just build-bench`, `just test`.
 
 ### Updating golden tests
 

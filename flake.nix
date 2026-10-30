@@ -153,6 +153,8 @@
             # skips every `run:` block, which is where a workflow keeps its logic.
             pkgs.actionlint
             pkgs.shellcheck
+            # Behind `just zizmor`.
+            pkgs.zizmor
             # `just update-golden` stages the re-recorded snapshots.
             pkgs.git
             config.treefmt.build.wrapper

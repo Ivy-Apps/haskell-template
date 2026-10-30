@@ -1,5 +1,12 @@
 # Revision history for haskell-template
 
+## Unreleased
+
+* Every action in `.github` is pinned to a commit, and `zizmor`
+  (`.github/zizmor.yml`, `just zizmor`) fails `just check` and CI on one that
+  is not.
+* `QA.md`: how the `qa` skill checks this repository.
+
 ## 1.3.0 -- 2026-10-28
 
 * `nix run .#quick-test [-- <filter>]` (and `just quick-test`): runs the tests,

@@ -19,6 +19,7 @@ check:
     just check-nix
     just lint
     just lint-actions
+    just zizmor
     just deslop
     just build
     just build-nix
@@ -52,6 +53,13 @@ lint:
 # catches up we adopt that default by hand.
 lint-actions:
     actionlint -shellcheck="shellcheck -e SC2153"
+
+# Audit .github for security problems (zizmor, reading .github/zizmor.yml), which
+# fails on an action not pinned to a commit. --offline needs no token, so a pin
+# is not checked to be a real commit of its action. --strict-collection fails on
+# a file zizmor cannot parse, which it would otherwise skip with a warning.
+zizmor:
+    zizmor --offline --strict-collection .
 
 # Fetch the Hackage index that cabal.project's pinned index-state requires
 update-index:

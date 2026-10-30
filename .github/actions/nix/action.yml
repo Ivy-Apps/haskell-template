@@ -6,8 +6,9 @@ description: >-
 runs:
   using: composite
   steps:
-    - uses: DeterminateSystems/nix-installer-action@main
-    - uses: DeterminateSystems/magic-nix-cache-action@main
+    # These two follow `main`, not a release, so the comment names the branch.
+    - uses: DeterminateSystems/nix-installer-action@9383ce2bf08796b65508822f5982f49151badc4e # main
+    - uses: DeterminateSystems/magic-nix-cache-action@f69a2d3e148e90223fe63ab6e3f6331f2e7e33dc # main
       with:
         # This org is not on FlakeHub; without this the action logs a red
         # (non-fatal) auth error. The GitHub Actions cache does the work.
