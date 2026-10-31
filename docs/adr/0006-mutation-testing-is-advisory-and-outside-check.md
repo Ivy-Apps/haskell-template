@@ -15,7 +15,9 @@ staying on hspec. sydtest-mutation is the maintained choice for GHC, and its
 used here:
 
 - **It is heavy to set up.** Not in nixpkgs or at our Hackage index, it comes from
-  sydtest's flake: about 25 minutes of build once, then about a minute a run.
+  sydtest's flake. A local cold build takes about 25 minutes, and a local run
+  after it about a minute. A CI run takes minutes: the Nix cache may not hold
+  sydtest, so it may rebuild from source.
 - **It proves itself on x86_64 only.** Upstream CI does not run aarch64.
 - **Its licence is not open source.** See the README. A template must let a
   closed-source clone remove it.

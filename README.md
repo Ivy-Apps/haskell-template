@@ -137,6 +137,10 @@ at the pinned revision, for its `Anyone` grant:
 And for anyone else:
 
 > **Contributors listed in [CONTRIBUTORS](./CONTRIBUTORS) or [GitHub sponsors of NorfairKing](https://github.com/sponsors/NorfairKing)** can use this software to test their software under the following conditions:
+>
+> ### Conditions
+>
+> * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 > **You can [contact me](https://cs-syd.eu/contact) for other arrangements (like a permanent license) on a case-to-case basis.**
 
@@ -164,8 +168,9 @@ This is not legal advice. Read the licence yourself.
 3. `haskell-app.cabal`: delete `flag mutation` and its comment. Replace the
    `if flag(mutation)` block, with its comment and `else`, by the two lines
    `type: exitcode-stdio-1.0` and `main-is: Main.hs`.
-4. `test/TestUtils.hs`: delete `withActualIn`, the `GOLDEN_ACTUAL_DIR` lookup and
-   the `actualFile` import, and let `pathSafeGolden` end in `pure . defaultGolden name`.
+4. `test/TestUtils.hs`: delete the `withActualIn` function with its comment and
+   the `GOLDEN_ACTUAL_DIR` lookup, remove `withActualIn actualDir name . ` from the
+   `pure` line after that lookup, and import `Golden` without `(actualFile)`.
 5. `Justfile`: delete the `mutation` recipe.
 6. `README.md`, `CLAUDE.md`, `docs/DEVELOPMENT.md`, `CHANGELOG.md`: delete what
    mentions it.

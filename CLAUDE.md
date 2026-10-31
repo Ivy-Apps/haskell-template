@@ -144,9 +144,9 @@ nix develop .#ci -c just mutation   # prints the score
 ```
 
 Runs sydtest-mutation over the hspec suite, in a Nix build. Read
-`result/score.md` and `result/haskell-app/report.{txt,json}`; the first run
-builds sydtest, about 25 minutes, and later ones take about a minute. x86_64-linux
-only, and not part of `just check`. CI runs it in
+`result/score.md` and `result/haskell-app/report.{txt,json}`; a local cold
+build of sydtest takes about 25 minutes, and later local runs about a minute. A CI
+run takes minutes, as it may rebuild sydtest from source. x86_64-linux only, and not part of `just check`. CI runs it in
 `.github/workflows/mutation.yaml`, on PRs, on pushes to main, weekly and by hand.
 
 - It fails when a test fails at baseline (`mutation: BASELINE FAILED`): fix that

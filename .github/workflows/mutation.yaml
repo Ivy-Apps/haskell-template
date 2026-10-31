@@ -22,8 +22,8 @@ jobs:
   # control. A survivor never does. x86_64 only, the one system sydtest's
   # mutation stack is proven on. PRs run the same full run as main, since nearly
   # all its cost is the instrumented build, which a diff-scoped run needs too.
-  # The Nix step holds about 25 minutes of cold sydtest build: the runs on main
-  # seed the cache that PRs then read.
+  # A run takes minutes: the Nix cache may not hold sydtest, so it may rebuild
+  # from source.
   mutation:
     name: Mutation testing
     runs-on: ubuntu-24.04
