@@ -1,0 +1,190 @@
+name: Mutation testing
+
+# Its own workflow so that the schedule reruns this job alone: in ci.yaml it
+# would rerun the ARM jobs every week too.
+on:
+  pull_request:
+  schedule:
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+
+# Rapid pushes to a PR cancel the stale run. Other runs are never cancelled.
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Advisory, and on purpose outside `Check`: see docs/adr/0006. It still goes
+  # red when its numbers would be false: a test failing at baseline or a failed
+  # control. A survivor never does. x86_64 only, the one system sydtest's
+  # mutation stack is proven on. PRs run the same full run as main, since nearly
+  # all its cost is the instrumented build, which a diff-scoped run needs too.
+  # A run takes minutes: the Nix cache may not hold sydtest, so it may rebuild
+  # from source.
+  mutation:
+    name: Mutation testing
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    outputs:
+      report-url: ${{ steps.report.outputs.artifact-url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/nix
+
+      - name: 🧬 Mutation testing
+        run: nix develop .#ci --accept-flake-config -c just mutation
+
+      - name: 📊 Score
+        run: cat result/score.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 📄 Report
+        id: report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutation-report
+          retention-days: 30
+          path: |
+            result/haskell-app/report.json
+            result/haskell-app/report.txt
+          if-no-files-found: error
+
+  # The one job that can write to the PR, so it never checks out PR code and runs
+  # only GitHub's actions, gh and jq. It renders the comment itself: report.json
+  # comes from a job that ran PR code, so all of its text is treated as hostile.
+  # Advisory like the job above: `Check` does not depend on this workflow.
+  comment:
+    name: Mutation comment
+    needs: mutation
+    # A fork's or Dependabot's token cannot write to the PR.
+    if: >-
+      !cancelled() && github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      RESULT: ${{ needs.mutation.result }}
+    steps:
+      - name: 📥 Report
+        if: needs.mutation.result == 'success'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: mutation-report
+          path: report
+
+      # PRs run the whole repository, see the job above, so the scope is whole
+      # changed files. mutation-diff.json holds what the comment shows, uncut.
+      - name: 🔎 Changed files only
+        if: needs.mutation.result == 'success'
+        run: |
+          gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --name-only > changed.txt
+          jq --rawfile changed changed.txt '
+            # Bare CR and the Unicode line separators end a line in Markdown too,
+            # so they could otherwise leave the fence.
+            def one_line: gsub("[\u0000-\u0008\u000a-\u001f\u007f\u0085\u2028\u2029]"; " ");
+            def count($outcome): map(select(.outcome == $outcome)) | length;
+            def tally: {
+              mutants: length,
+              killed: count("killed"),
+              survived: count("survived"),
+              timed_out: count("timed_out"),
+              uncovered: count("uncovered"),
+              skipped: count("skipped")
+            };
+            def entry: {
+              outcome,
+              file: (.mutation.source_file | one_line),
+              line: .mutation.line,
+              end_line: .mutation.end_line,
+              operator: (.mutation.operator | one_line),
+              binding: ((.mutation.binding // "") | one_line),
+              original: (.mutation.source_lines | map(one_line)),
+              mutated: (.mutation.mutated_lines | map(one_line))
+            };
+            ($changed | split("\n")) as $files
+            | [.groups[][] | select(.mutation.operator != "Control")] as $all
+            | ($all | map(select(.mutation.source_file | IN($files[])))) as $scoped
+            | {
+                schema: 1,
+                changed_files: ($scoped | tally),
+                repository: ($all | tally),
+                mutants: (
+                  $scoped
+                  | map(select(.outcome | IN("survived", "uncovered", "timed_out", "skipped")) | entry)
+                  | sort_by({survived: 0, uncovered: 1, timed_out: 2, skipped: 3}[.outcome], .file, .line)
+                )
+              }
+          ' report/report.json > mutation-diff.json
+
+      - name: 📄 Changed files report
+        id: diff
+        if: needs.mutation.result == 'success'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutation-diff
+          path: mutation-diff.json
+          retention-days: 30
+          if-no-files-found: error
+
+      # Every line in the fence starts with @, - or +, so none can close it.
+      - name: ✍️ Render
+        if: needs.mutation.result == 'success'
+        run: |
+          jq -j '
+            def row($name): "| \($name) | \(.mutants) | \(.killed) | \(.survived) | \(.timed_out) | \(.uncovered) | \(.skipped) |\n";
+            def block: "@@ \(.outcome) \(.file):\(.line) \(.operator) \(.binding) @@\n"
+              + ((.original[:12] | map("- " + .[:200])) + (.mutated[:12] | map("+ " + .[:200])) | join("\n")) + "\n";
+            (reduce (.mutants[] | block) as $block ({text: "", shown: 0};
+              if (.text + $block | utf8bytelength) > 58000 then . else .text += $block | .shown += 1 end)) as $fence
+            | ((.mutants | length) - $fence.shown) as $cut
+            | "Scope: the files this PR changes, whole files. The run itself covers the whole repository.\n\n"
+              + "| | Mutants | Killed | Survived | Timed out | Uncovered | Skipped |\n|---|---|---|---|---|---|---|\n"
+              + (.changed_files | row("Changed files"))
+              + (.repository | row("Whole repository"))
+              + (if .changed_files.mutants == 0
+                 then "\nNo mutants in the changed files, so no changed code was assessed. Only `src/` is mutated: changes to tests alone are not assessed here, so 0 mutants does not mean the tests were checked.\n"
+                 else "" end)
+              + (if $fence.shown == 0 then "" else "\n```diff\n" + $fence.text + "```\n" end)
+              + (if $cut > 0 then "\n\($cut) more not shown: fetch the changed files report below.\n" else "" end)
+          ' mutation-diff.json > summary.md
+
+      - name: 💬 Comment
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          DIFF_URL: ${{ steps.diff.outputs.artifact-url }}
+          REPORT_URL: ${{ needs.mutation.outputs.report-url }}
+        run: |
+          marker='<!-- mutation-report -->'
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          {
+            printf '%s\n### 🧬 Mutation testing\n\nCommit %s, [run](%s).\n\n' "$marker" "$HEAD_SHA" "$run_url"
+            if [ "$RESULT" = success ]; then
+              cat summary.md
+              printf '\nReports: [changed files only](%s), [full](%s).\n\n' "$DIFF_URL" "$REPORT_URL"
+              printf '```bash\n'
+              printf '# Changed files only: every mutant above, uncut, in mutation-diff.json\n'
+              printf 'gh run download %s -R %s -n mutation-diff -D /tmp/mutation-diff\n' "$GITHUB_RUN_ID" "$GITHUB_REPOSITORY"
+              printf '# Full report: report.json and report.txt\n'
+              printf 'gh run download %s -R %s -n mutation-report -D /tmp/mutation-report\n' "$GITHUB_RUN_ID" "$GITHUB_REPOSITORY"
+              printf '```\n'
+            else
+              printf 'Did not finish, so there are no numbers for this commit. See the run.\n'
+            fi
+          } > comment.md
+
+          payload="$(jq -n --rawfile body comment.md '{body: $body}')"
+          id="$(MARKER="$marker" gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith(env.MARKER))) | .id' | head -n 1)"
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" --input - <<<"$payload" > /dev/null
+          else
+            gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --input - <<<"$payload" > /dev/null
+          fi

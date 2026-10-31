@@ -54,6 +54,7 @@ test/                  -- hspec specs mirroring src/ (auto-discovered)
 test/Doubles/          -- test doubles for the effects
 bench/                 -- criterion benchmark + bench/reference.yaml
 nix/ghcid/             -- the ghcid daemon behind quick-typecheck and quick-test
+nix/mutation.nix       -- mutation testing; nix/mutation.yaml is its plugin config
 docs/                  -- DEVELOPMENT.md and architecture decision records
 haskell-app.cabal      -- package definition
 cabal.project(.freeze) -- Cabal pins (index-state + frozen versions)
@@ -92,6 +93,7 @@ From inside the dev shell (`just --list` shows them all):
 | Compile the benchmark  | `just build-bench`                        |
 | Quick typecheck        | `just quick-typecheck` / `just stop-ghcid`|
 | Quick test             | `just quick-test [filter]`                |
+| Mutation testing       | `just mutation`                           |
 | Update deps            | `just update-deps`                        |
 | Update golden          | `just update-golden`                      |
 | Regenerate `hie`       | `just update-hie`                         |
@@ -107,6 +109,75 @@ what AI tooling uses, see [`CLAUDE.md`](./CLAUDE.md)):
 | Quick typecheck | `nix run .#quick-typecheck`            |
 | Quick test      | `nix run .#quick-test` (or `-- AppSpec`) |
 | Update golden   | `nix run .#update-golden`              |
+
+## Mutation testing
+
+`just mutation` breaks the library in small ways and checks that a test notices.
+It runs [sydtest-mutation](https://github.com/NorfairKing/sydtest) over the hspec
+suite through `fromHspec`, on x86_64-linux, and is not part of `just check`. It is
+pinned in `flake.nix` and only `checks.<system>.mutation` evaluates it, so the
+normal build, the dev shells and the `just check` jobs never fetch it.
+
+### Licence warning: read this before you clone the template
+
+sydtest and sydtest-mutation are **not** open source. These are the conditions
+of [sydtest's `LICENSE.md`](https://github.com/NorfairKing/sydtest/blob/6ba5347b0f1ec27cc912bb45ca98e0e4f24343ea/sydtest/LICENSE.md),
+at the pinned revision, for its `Anyone` grant:
+
+> **Anyone** can use this software to test your software under the following license:
+>
+> ### Conditions:
+>
+> * _The software under test is not used for commercial purposes._
+>   **OR**
+>   _The software under test is open-source software licensed according to an [OSI-approved Open Source license](https://opensource.org/licenses)._
+> * Any modifications to the licensed software must be made public under the same license with the same copyright holder.
+> * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+And for anyone else:
+
+> **Contributors listed in [CONTRIBUTORS](./CONTRIBUTORS) or [GitHub sponsors of NorfairKing](https://github.com/sponsors/NorfairKing)** can use this software to test their software under the following conditions:
+>
+> ### Conditions
+>
+> * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+> **You can [contact me](https://cs-syd.eu/contact) for other arrangements (like a permanent license) on a case-to-case basis.**
+
+What that means here:
+
+- **This template** is BSD-3-Clause, an OSI-approved licence, so it fits the
+  `Anyone` grant.
+- **A clone under an OSI-approved licence, or one not used commercially,** fits
+  it too.
+- **A closed-source commercial clone does not fit it.** The condition is on the
+  software under test, and the text has no exception for a tool that never ships
+  in your product. Such a clone must do one of these: remove mutation testing
+  (below), sponsor [NorfairKing](https://github.com/sponsors/NorfairKing), or
+  [arrange a licence](https://cs-syd.eu/contact).
+
+This is not legal advice. Read the licence yourself.
+
+### Removing it
+
+1. Delete `nix/mutation.nix`, `nix/mutation.yaml`, `test/MutationMain.hs`,
+   `test/Spec.hs`, `.github/workflows/mutation.yaml` and
+   `docs/adr/0006-mutation-testing-is-advisory-and-outside-check.md`.
+2. `flake.nix`: delete the `sydtest` input and the `checks.mutation` attribute,
+   then run `nix flake lock`.
+3. `haskell-app.cabal`: delete `flag mutation` and its comment. Replace the
+   `if flag(mutation)` block, with its comment and `else`, by the two lines
+   `type: exitcode-stdio-1.0` and `main-is: Main.hs`.
+4. `test/TestUtils.hs`: delete the `withActualIn` function and the
+   `goldenActualDirEnv` constant with their comments, its export and the
+   `lookupEnv goldenActualDirEnv` line, remove `withActualIn actualDir name . `
+   from the `pure` line after that lookup, and import `Golden` without
+   `(actualFile)`.
+5. `Justfile`: delete the `mutation` recipe.
+6. `README.md`, `CLAUDE.md`, `docs/DEVELOPMENT.md`, `CHANGELOG.md`: delete what
+   mentions it.
+7. Run `just fmt`. `rg -il 'mutation|sydtest'` then finds nothing, and `flake.lock`
+   has no sydtest left in it.
 
 ## How dependency pinning works
 
