@@ -30,9 +30,11 @@ read-only source tree, so a test can fail there alone.
 - **Tests stay on hspec.** The cabal flag `mutation`, off by default, swaps the
   test suite's main for `test/MutationMain.hs`. Nothing but
   `checks.<system>.mutation` turns it on or evaluates the `sydtest` input.
-- **`just mutation` is a recipe of its own**, outside `just check`, and a job of
-  its own in CI, on x86_64 and outside the aggregate `Check`. A survivor never
-  fails it, so the score is advice for now.
+- **`just mutation` is a recipe of its own**, outside `just check`, and a CI
+  workflow of its own, `mutation.yaml`, on x86_64 and outside the aggregate
+  `Check`. A survivor never fails it, so the score is advice for now.
+- **Only `mutation.yaml` has the weekly schedule.** In `ci.yaml` it would rerun
+  every other job each week, so that file stays as it was.
 - **The score counts `skipped` and `uncovered` as not killed.** A mutant skipped
   behind a survivor is not one a test caught.
 - **The baseline guard is a build input of the result.** The check runs the
@@ -70,4 +72,3 @@ read-only source tree, so a test can fail there alone.
 - The test suite has a second entry point, so anything a test writes to the source
   tree works under `just test` and fails at baseline here. The guard makes that
   loud.
-- Weekly CI runs the other jobs on `main` too, because they share `ci.yaml`.

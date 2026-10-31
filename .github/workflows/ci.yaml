@@ -5,10 +5,6 @@ on:
     branches:
       - main
   pull_request:
-  # Mutation testing on main every Monday, with the rest of CI. Manual runs too.
-  schedule:
-    - cron: "23 4 * * 1"
-  workflow_dispatch:
 
 # Rapid pushes to a PR cancel the stale run. Pushes to main are never
 # cancelled, so a green main always means that exact commit passed.
@@ -108,41 +104,6 @@ jobs:
 
       - name: ⏱️ Build benchmark
         run: nix develop .#ci --accept-flake-config -c just build-bench
-
-  # Advisory, and on purpose outside `Check` below: see docs/adr/0006. It still
-  # goes red when its numbers would be false: a test failing at baseline or a
-  # failed control. A survivor never does. x86_64 only, the one system sydtest's
-  # mutation stack is proven on. PRs run the same full run as main, since nearly
-  # all its cost is the instrumented build, which a diff-scoped run needs too.
-  # The Nix step holds about 25 minutes of cold sydtest build: the runs on main
-  # seed the cache that PRs then read.
-  mutation:
-    name: Mutation testing
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/nix
-
-      - name: 🧬 Mutation testing
-        run: nix develop .#ci --accept-flake-config -c just mutation
-
-      - name: 📊 Score
-        run: cat result/score.md >> "$GITHUB_STEP_SUMMARY"
-
-      - name: 📄 Report
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: mutation-report
-          path: |
-            result/haskell-app/report.json
-            result/haskell-app/report.txt
-          if-no-files-found: error
 
   # The status check to require: green only when every job above succeeded.
   # `always()` makes it report even when one failed or was skipped, because a

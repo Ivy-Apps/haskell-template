@@ -1,0 +1,53 @@
+name: Mutation testing
+
+# Its own workflow so that the schedule reruns this job alone: in ci.yaml it
+# would rerun the ARM jobs every week too.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  schedule:
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+
+# Rapid pushes to a PR cancel the stale run. Other runs are never cancelled.
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Advisory, and on purpose outside `Check`: see docs/adr/0006. It still goes
+  # red when its numbers would be false: a test failing at baseline or a failed
+  # control. A survivor never does. x86_64 only, the one system sydtest's
+  # mutation stack is proven on. PRs run the same full run as main, since nearly
+  # all its cost is the instrumented build, which a diff-scoped run needs too.
+  # The Nix step holds about 25 minutes of cold sydtest build: the runs on main
+  # seed the cache that PRs then read.
+  mutation:
+    name: Mutation testing
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/nix
+
+      - name: 🧬 Mutation testing
+        run: nix develop .#ci --accept-flake-config -c just mutation
+
+      - name: 📊 Score
+        run: cat result/score.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 📄 Report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutation-report
+          path: |
+            result/haskell-app/report.json
+            result/haskell-app/report.txt
+          if-no-files-found: error

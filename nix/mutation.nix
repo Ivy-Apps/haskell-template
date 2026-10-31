@@ -9,8 +9,6 @@
   sydtest,
 }:
 let
-  hlib = pkgs.haskell.lib.compose;
-
   overridesOf = src: pkgs.callPackage (src + "/nix/overrides.nix") { };
 
   # sydtest's own flake composes these for itself; a consumer has to repeat them.
@@ -25,10 +23,8 @@ let
 
   projectWithFlag = self: _: {
     # No profiling build: it would compile the instrumented library a second time.
-    ${projectName} = hlib.disableLibraryProfiling (
-      hlib.enableCabalFlag "mutation" (
-        self.callCabal2nixWithOptions projectName ../. "--flag=mutation" { }
-      )
+    ${projectName} = pkgs.haskell.lib.compose.disableLibraryProfiling (
+      self.callCabal2nixWithOptions projectName ../. "--flag=mutation" { }
     );
   };
 
@@ -79,12 +75,12 @@ pkgs.runCommand "${projectName}-mutation"
     # `skipped` mutants sit behind a survivor at the same site: not killed, so they
     # count against the score. `uncovered` in the report's totals includes controls.
     jq -r '
-      [.groups[][] | select(.outcome == "uncovered" and .mutation.operator != "Control")] as $uncovered
+      ([.groups[][] | select(.outcome == "uncovered" and .mutation.operator != "Control")] | length) as $uncovered
       | .mutations as $m
-      | ($m.killed + $m.survived + $m.skipped + ($uncovered | length)) as $total
+      | ($m.killed + $m.survived + $m.skipped + $uncovered) as $total
       | "### Mutation score: \(if $total == 0 then "n/a" else "\($m.killed * 1000 / $total | round / 10)%" end)\n",
         "| Killed | Survived | Skipped | Uncovered | Total | Controls passed | Controls failed |",
         "|---|---|---|---|---|---|---|",
-        "| \($m.killed) | \($m.survived) | \($m.skipped) | \($uncovered | length) | \($total) | \(.controls.passed) | \(.controls.failed) |"
+        "| \($m.killed) | \($m.survived) | \($m.skipped) | \($uncovered) | \($total) | \(.controls.passed) | \(.controls.failed) |"
     ' ${report}/${projectName}/report.json > "$out/score.md"
   ''

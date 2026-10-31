@@ -157,7 +157,8 @@ This is not legal advice. Read the licence yourself.
 ### Removing it
 
 1. Delete `nix/mutation.nix`, `nix/mutation.yaml`, `test/MutationMain.hs`,
-   `test/Spec.hs` and `docs/adr/0006-mutation-testing-is-advisory-and-outside-check.md`.
+   `test/Spec.hs`, `.github/workflows/mutation.yaml` and
+   `docs/adr/0006-mutation-testing-is-advisory-and-outside-check.md`.
 2. `flake.nix`: delete the `sydtest` input and the `checks.mutation` attribute,
    then run `nix flake lock`.
 3. `haskell-app.cabal`: delete `flag mutation` and its comment. Replace the
@@ -166,11 +167,9 @@ This is not legal advice. Read the licence yourself.
 4. `test/TestUtils.hs`: delete `withActualIn`, the `GOLDEN_ACTUAL_DIR` lookup and
    the `actualFile` import, and let `pathSafeGolden` end in `pure . defaultGolden name`.
 5. `Justfile`: delete the `mutation` recipe.
-6. `.github/workflows/ci.yaml`: delete the `mutation` job, and `schedule` and
-   `workflow_dispatch` from `on:`.
-7. `README.md`, `CLAUDE.md`, `docs/DEVELOPMENT.md`, `CHANGELOG.md`: delete what
+6. `README.md`, `CLAUDE.md`, `docs/DEVELOPMENT.md`, `CHANGELOG.md`: delete what
    mentions it.
-8. Run `just fmt`. `rg -il 'mutation|sydtest'` then finds nothing, and `flake.lock`
+7. Run `just fmt`. `rg -il 'mutation|sydtest'` then finds nothing, and `flake.lock`
    has no sydtest left in it.
 
 ## How dependency pinning works
