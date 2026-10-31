@@ -142,8 +142,8 @@ jobs:
             def row($name): "| \($name) | \(.mutants) | \(.killed) | \(.survived) | \(.timed_out) | \(.uncovered) | \(.skipped) |\n";
             def block: "@@ \(.outcome) \(.file):\(.line) \(.operator) \(.binding) @@\n"
               + ((.original[:12] | map("- " + .[:200])) + (.mutated[:12] | map("+ " + .[:200])) | join("\n")) + "\n";
-            reduce (.mutants[] | block) as $block ({text: "", shown: 0};
-              if (.text + $block | utf8bytelength) > 58000 then . else .text += $block | .shown += 1 end) as $fence
+            (reduce (.mutants[] | block) as $block ({text: "", shown: 0};
+              if (.text + $block | utf8bytelength) > 58000 then . else .text += $block | .shown += 1 end)) as $fence
             | ((.mutants | length) - $fence.shown) as $cut
             | "Scope: the files this PR changes, whole files. The run itself covers the whole repository.\n\n"
               + "| | Mutants | Killed | Survived | Timed out | Uncovered | Skipped |\n|---|---|---|---|---|---|---|\n"
