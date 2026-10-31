@@ -148,6 +148,8 @@ Runs sydtest-mutation over the hspec suite, in a Nix build. Read
 build of sydtest takes about 25 minutes, and later local runs about a minute. A CI
 run takes minutes, as it may rebuild sydtest from source. x86_64-linux only, and not part of `just check`. CI runs it in
 `.github/workflows/mutation.yaml`, on PRs, weekly and by hand.
+On a PR, its `comment` job keeps one comment with the mutants in the changed
+files, and how to fetch `mutation-diff.json` (those mutants) and the full report.
 
 - It fails when a test fails at baseline (`mutation: BASELINE FAILED`): fix that
   test, because every number would be false. It also fails on a failed control.
