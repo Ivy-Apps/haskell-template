@@ -61,6 +61,14 @@ lint-actions:
 zizmor:
     zizmor --offline --strict-collection .
 
+# Mutation-test the library: prints the score and leaves the report in
+# result/haskell-app/report.{txt,json}. Not part of `check`: its first build
+# takes about 25 minutes. Fails on a test failing at baseline, never on a
+# survivor. See nix/mutation.nix
+mutation:
+    nix build .#checks.x86_64-linux.mutation --accept-flake-config
+    cat result/score.md
+
 # Fetch the Hackage index that cabal.project's pinned index-state requires
 update-index:
     cabal update
