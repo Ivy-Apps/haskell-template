@@ -8,8 +8,9 @@ import System.Directory (getTemporaryDirectory)
 import System.Environment (setEnv)
 import Test.Syd (sydTest)
 import Test.Syd.Hspec (fromHspec)
+import TestUtils (goldenActualDirEnv)
 
 main :: IO ()
 main = do
-    setEnv "GOLDEN_ACTUAL_DIR" =<< getTemporaryDirectory
+    setEnv goldenActualDirEnv =<< getTemporaryDirectory
     sydTest . fromHspec $ spec

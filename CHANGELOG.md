@@ -9,9 +9,8 @@
 * Mutation testing: `just mutation` runs sydtest-mutation over the hspec suite
   through `fromHspec`, behind the cabal flag `mutation` and the flake check
   `checks.<system>.mutation`. Outside `just check` and the aggregate `Check`:
-  a new x86_64 workflow, `mutation.yaml`, runs it on every PR, on pushes to
-  main, weekly and by hand, shows the score in the job summary and uploads the
-  report. A test failing at baseline fails it, a survivor never does. Read the
+  a new x86_64 workflow, `mutation.yaml`, runs it on every PR, weekly and by
+  hand, shows the score in the job summary and uploads the report. A test failing at baseline fails it, a survivor never does. Read the
   licence conditions in the README before cloning this template for
   closed-source commercial work.
 * `Effects.System` has a spec, added for a mutant nothing covered.

@@ -168,9 +168,11 @@ This is not legal advice. Read the licence yourself.
 3. `haskell-app.cabal`: delete `flag mutation` and its comment. Replace the
    `if flag(mutation)` block, with its comment and `else`, by the two lines
    `type: exitcode-stdio-1.0` and `main-is: Main.hs`.
-4. `test/TestUtils.hs`: delete the `withActualIn` function with its comment and
-   the `GOLDEN_ACTUAL_DIR` lookup, remove `withActualIn actualDir name . ` from the
-   `pure` line after that lookup, and import `Golden` without `(actualFile)`.
+4. `test/TestUtils.hs`: delete the `withActualIn` function and the
+   `goldenActualDirEnv` constant with their comments, its export and the
+   `lookupEnv goldenActualDirEnv` line, remove `withActualIn actualDir name . `
+   from the `pure` line after that lookup, and import `Golden` without
+   `(actualFile)`.
 5. `Justfile`: delete the `mutation` recipe.
 6. `README.md`, `CLAUDE.md`, `docs/DEVELOPMENT.md`, `CHANGELOG.md`: delete what
    mentions it.

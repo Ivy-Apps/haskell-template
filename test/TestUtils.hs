@@ -9,6 +9,7 @@ module TestUtils (
     -- * Golden tests
     snapshot,
     pathSafeGolden,
+    goldenActualDirEnv,
 
     -- * Fixtures on disk
     listFixtures,
@@ -60,8 +61,12 @@ pathSafeGolden :: String -> String -> IO (Golden String)
 pathSafeGolden name content = do
     -- Spelled as 'show' spells it, since that is how a path reaches the content.
     base <- T.replace "\"" "" . show . (.osPath) <$> (runEff . runRoFileSystemIO . fsMkAbsolute $ [osp|.|])
-    actualDir <- lookupEnv "GOLDEN_ACTUAL_DIR"
+    actualDir <- lookupEnv goldenActualDirEnv
     pure . withActualIn actualDir name . defaultGolden name . T.unpack . T.replace base "~" . T.pack $ content
+
+-- | The environment variable naming where a golden's @actual@ file goes.
+goldenActualDirEnv :: String
+goldenActualDirEnv = "GOLDEN_ACTUAL_DIR"
 
 {- | hspec-golden writes the @actual@ file on every run. A mutation run has the
 source tree read-only, so "MutationMain" sends those writes elsewhere. Left
