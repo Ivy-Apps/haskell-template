@@ -3,9 +3,6 @@ name: Mutation testing
 # Its own workflow so that the schedule reruns this job alone: in ci.yaml it
 # would rerun the ARM jobs every week too.
 on:
-  push:
-    branches:
-      - main
   pull_request:
   schedule:
     - cron: "23 4 * * 1"
