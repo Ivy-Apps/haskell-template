@@ -170,8 +170,8 @@ This is not legal advice. Read the licence yourself.
    `workflow_dispatch` from `on:`.
 7. `README.md`, `CLAUDE.md`, `docs/DEVELOPMENT.md`, `CHANGELOG.md`: delete what
    mentions it.
-
-`rg -il 'mutation|sydtest'` then finds nothing but this history.
+8. Run `just fmt`. `rg -il 'mutation|sydtest'` then finds nothing, and `flake.lock`
+   has no sydtest left in it.
 
 ## How dependency pinning works
 
