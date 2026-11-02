@@ -30,6 +30,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-parts.follows = "flake-parts";
     };
+    # sydtest-mutation, behind `checks.<system>.mutation` only. Not on Hackage at
+    # our index-state and not in nixpkgs, so its flake is the source of truth.
+    # Pinned to a rev because it moves weekly.
+    sydtest = {
+      url = "github:NorfairKing/sydtest/6ba5347b0f1ec27cc912bb45ca98e0e4f24343ea";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -157,6 +164,8 @@
             pkgs.zizmor
             # `just update-golden` stages the re-recorded snapshots.
             pkgs.git
+            # `just mutation-diff` filters and renders the report with it.
+            pkgs.jq
             config.treefmt.build.wrapper
           ]
           # Behind `just deslop`. deslop releases a binary for every system here
@@ -166,6 +175,15 @@
         in
         {
           packages.default = hpkgs.${projectName};
+
+          checks.mutation = import ./nix/mutation.nix {
+            inherit
+              pkgs
+              hpkgs
+              projectName
+              ;
+            inherit (inputs) sydtest;
+          };
 
           # `nix fmt` / `treefmt`: format Haskell, Cabal, and Nix in one shot.
           treefmt = {

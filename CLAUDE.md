@@ -137,6 +137,46 @@ run `update-benchmark` to silence a regression you have not explained. Cases
 live in `bench/Bench/Cases.hs`. See
 [ADR 4](docs/adr/0004-benchmarks-are-local-only.md).
 
+### Mutation testing
+
+```bash
+nix develop .#ci -c just mutation-diff   # the mutants on this branch's changed lines
+nix develop .#ci -c just mutation        # every mutant, prints the score
+```
+
+`just mutation-diff [base]` (default `origin/main`) mutates only the lines
+added or edited since the merge-base, uncommitted edits included. Its stdout is
+the whole answer: totals, then each survived, uncovered or timed out mutant as
+`@@ status file:line operator @@` with the original (`-`) and mutated (`+`)
+lines. The last line is the path of `mutation-diff.json`; tool output is in
+`run.log` beside it. It exits 0 whatever survives, so a non-zero exit means the
+run itself failed: read the message and `run.log`. Deletions and changes
+outside `src/` are not assessed, and the report says so.
+
+`just mutation` runs sydtest-mutation over the hspec suite, in a Nix build. Read
+`result/score.md` and `result/haskell-app/report.{txt,json}`; a local cold
+build of sydtest takes about 25 minutes, and later local runs about a minute. A CI
+run takes minutes, as it may rebuild sydtest from source. x86_64-linux only, and not part of `just check`. CI runs it in
+`.github/workflows/mutation.yaml`, on PRs, weekly and by hand.
+On a PR it runs `just mutation-diff` against the PR's base, and its `comment`
+job keeps one comment with that report and the `gh run download` line for the
+`mutation-diff` artifact. The weekly and manual runs are `just mutation`.
+
+- It fails when a test fails at baseline (`mutation: BASELINE FAILED`): fix that
+  test, because every number would be false. It also fails on a failed control,
+  and a whole run on zero controls. A survivor never fails it.
+- Read a survivor by applying its mutation by hand. Then add a test, or, if no
+  sound test can kill it, suppress it in `nix/mutation.yaml`. Never to lift the
+  score, which counts `skipped` and `uncovered` mutants as not killed.
+- The suite runs twice under different mains: `test/Main.hs` normally,
+  `test/MutationMain.hs` under the cabal flag `mutation`, from a read-only source
+  tree. Anything a test writes must go to a temp dir, so a golden's `actual` file
+  follows `GOLDEN_ACTUAL_DIR`, or the test fails at baseline.
+- `quick-typecheck` does not load `test/MutationMain.hs` or `test/Spec.hs`, so an
+  edit to one alone reads as stale until the next edit to a loaded module.
+
+See [ADR 6](docs/adr/0006-mutation-testing-is-advisory-and-outside-check.md).
+
 ## Where new code goes
 
 - **`src/Effects/`** - every effect declaration and its IO interpreter

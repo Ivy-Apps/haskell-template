@@ -9,6 +9,7 @@ module TestUtils (
     -- * Golden tests
     snapshot,
     pathSafeGolden,
+    goldenActualDirEnv,
 
     -- * Fixtures on disk
     listFixtures,
@@ -32,7 +33,7 @@ import System.Directory.OsPath qualified as SDO
 import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, takeExtension, (</>))
 import Test.Hspec (Spec, expectationFailure, it)
-import Test.Hspec.Golden (Golden, defaultGolden)
+import Test.Hspec.Golden (Golden (actualFile), defaultGolden)
 import Test.Hspec.Hedgehog (hedgehog)
 
 --------------------------------------------------------------------------------
@@ -60,7 +61,20 @@ pathSafeGolden :: String -> String -> IO (Golden String)
 pathSafeGolden name content = do
     -- Spelled as 'show' spells it, since that is how a path reaches the content.
     base <- T.replace "\"" "" . show . (.osPath) <$> (runEff . runRoFileSystemIO . fsMkAbsolute $ [osp|.|])
-    pure . defaultGolden name . T.unpack . T.replace base "~" . T.pack $ content
+    actualDir <- lookupEnv goldenActualDirEnv
+    pure . withActualIn actualDir name . defaultGolden name . T.unpack . T.replace base "~" . T.pack $ content
+
+-- | The environment variable naming where a golden's @actual@ file goes.
+goldenActualDirEnv :: String
+goldenActualDirEnv = "GOLDEN_ACTUAL_DIR"
+
+{- | hspec-golden writes the @actual@ file on every run. A mutation run has the
+source tree read-only, so "MutationMain" sends those writes elsewhere. Left
+alone otherwise, because @hgold@ promotes @.golden/*/actual@.
+-}
+withActualIn :: Maybe FilePath -> String -> Golden a -> Golden a
+withActualIn Nothing _ golden = golden
+withActualIn (Just dir) name golden = golden {actualFile = Just (dir <> "/" <> name <> "/actual")}
 
 --------------------------------------------------------------------------------
 -- Fixtures on disk

@@ -6,6 +6,19 @@
   (`.github/zizmor.yml`, `just zizmor`) fails `just check` and CI on one that
   is not.
 * `QA.md`: how the `qa` skill checks this repository.
+* Mutation testing: `just mutation` runs sydtest-mutation over the hspec suite
+  through `fromHspec`, behind the cabal flag `mutation` and the flake check
+  `checks.<system>.mutation`. Outside `just check` and the aggregate `Check`:
+  a new x86_64 workflow, `mutation.yaml`, runs it weekly and by hand, shows
+  the score in the job summary and uploads the report; a test failing at
+  baseline, a failed control or a run with no control fails it.
+  `just mutation-diff [base]` mutates only the lines a branch adds or edits and
+  prints the survivors, with no score; a diff without a control is normal. On
+  a PR, CI runs it against the PR's base and a bot keeps one comment with the
+  mutants on the changed lines; the `mutation-diff` artifact holds the same
+  list uncut. Neither run fails on a survivor. Read the licence conditions in
+  the README before cloning this template for closed-source commercial work.
+* `Effects.System` has a spec, added for a mutant nothing covered.
 
 ## 1.3.0 -- 2026-10-28
 

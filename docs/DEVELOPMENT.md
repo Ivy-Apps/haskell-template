@@ -94,6 +94,8 @@ additional workflows (`just --list` for all of them):
 | `just update-benchmark` | Accept the current numbers into `bench/reference.yaml` |
 | `just quick-typecheck` / `just stop-ghcid` | The warm ghcid typecheck / stop every ghcid daemon |
 | `just quick-test [filter]` | Run the specs in the warm ghcid session |
+| `just mutation` | Mutation-test the library: prints the score, leaves the report in `result/` |
+| `just mutation-diff [base]` | Mutation-test only the lines this branch adds or edits: prints the survivors, writes `dist-newstyle/mutation-diff/` |
 | `just update-golden` | Re-record the hspec-golden snapshots in `.golden/` |
 | `just update-deps` | Update the Nix flake inputs and re-freeze cabal dependencies |
 | `just update-hie` | Regenerate `hie.yaml` |
@@ -111,7 +113,7 @@ additional workflows (`just --list` for all of them):
 | `test/` | hspec suites mirroring `src/` |
 | `test/Doubles/` | Test doubles for the effects |
 | `bench/` | criterion benchmark and its regression gate |
-| `nix/` | Nix code too large for `flake.nix` (the ghcid daemon) |
+| `nix/` | Nix code too large for `flake.nix` (the ghcid daemon, mutation testing) |
 | `docs/adr/` | Architecture decision records |
 
 ## Coding conventions
@@ -140,6 +142,12 @@ Golden tests compare output against snapshots in `.golden/`. If you
 intentionally change output, re-record them with `just update-golden` and review
 the diff before committing. A failing golden test is never by itself a reason
 to re-record.
+
+Mutation testing asks whether the tests would notice a bug: `just mutation`
+breaks the library in small ways and reports each change no test caught, and
+`just mutation-diff` does the same for the lines a branch adds or edits. It runs
+apart from `just check` and only on x86_64-linux. See
+[ADR 6](adr/0006-mutation-testing-is-advisory-and-outside-check.md).
 
 ## Benchmarks
 

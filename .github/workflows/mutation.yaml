@@ -1,0 +1,149 @@
+name: Mutation testing
+
+# Its own workflow so that the schedule reruns this job alone: in ci.yaml it
+# would rerun the ARM jobs every week too.
+on:
+  pull_request:
+  schedule:
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+
+# Rapid pushes to a PR cancel the stale run. Other runs are never cancelled.
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Advisory, and on purpose outside `Check`: see docs/adr/0006. It still goes
+  # red when its numbers would be false: a test failing at baseline, a failed
+  # control or a runner that died. A survivor never does. x86_64 only, the one
+  # system sydtest's mutation stack is proven on. A PR mutates only the lines it
+  # adds or edits; the schedule and a manual run mutate everything. A run takes
+  # minutes: the Nix cache may not hold sydtest, so it may rebuild from source.
+  mutation:
+    name: Mutation testing
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    outputs:
+      diff-url: ${{ steps.diff.outputs.artifact-url }}
+    steps:
+      # A PR runs on its head, so the diff from the merge-base with its base is
+      # exactly its own change. That merge-base needs the whole history, base
+      # included. A plain 0, not a `&& 0 ||` expression: 0 is falsy there.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: ./.github/actions/nix
+
+      - name: 🧬 Mutation testing, changed lines
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          nix develop .#ci --accept-flake-config -c just mutation-diff "$BASE_SHA"
+          cat dist-newstyle/mutation-diff/mutation-diff.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 📄 Changed lines report
+        id: diff
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutation-diff
+          retention-days: 30
+          path: |
+            dist-newstyle/mutation-diff/mutation-diff.json
+            dist-newstyle/mutation-diff/mutation-diff.md
+          if-no-files-found: error
+
+      - name: 🧬 Mutation testing, whole library
+        if: github.event_name != 'pull_request'
+        run: |
+          nix develop .#ci --accept-flake-config -c just mutation
+          cat result/score.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 📄 Report
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutation-report
+          retention-days: 30
+          path: |
+            result/haskell-app/report.json
+            result/haskell-app/report.txt
+          if-no-files-found: error
+
+  # The one job that can write to the PR, so it never runs PR code: only GitHub's
+  # actions, gh, jq and nix/mutation-diff.jq checked out from the PR's base, never
+  # its head. mutation-diff.json comes from a job that ran PR code, so the
+  # renderer treats all of it as hostile. Advisory like the job above: `Check`
+  # does not depend on this workflow.
+  comment:
+    name: Mutation comment
+    needs: mutation
+    # A fork's or Dependabot's token cannot write to the PR.
+    if: >-
+      !cancelled() && github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      RESULT: ${{ needs.mutation.result }}
+    steps:
+      - name: 📥 Renderer, from the base
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          sparse-checkout: nix/mutation-diff.jq
+          sparse-checkout-cone-mode: false
+
+      - name: 📥 Report
+        if: needs.mutation.result == 'success'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: mutation-diff
+          path: mutation-diff
+
+      - name: 💬 Comment
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          DIFF_URL: ${{ needs.mutation.outputs.diff-url }}
+        run: |
+          marker='<!-- mutation-report -->'
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          {
+            printf '%s\n### 🧬 Mutation testing\n\n' "$marker"
+            printf 'Commit %s, [run](%s). Mutants on the lines this PR adds or edits since %s.\n\n' "$HEAD_SHA" "$run_url" "$BASE_SHA"
+            if [ "$RESULT" != success ]; then
+              printf 'Did not finish, so there are no numbers for this commit. See the run.\n'
+            elif jq -j -L base/nix 'include "mutation-diff"; render' mutation-diff/mutation-diff.json > summary.md; then
+              cat summary.md
+              printf '\nEvery mutant, uncut, in mutation-diff.json and mutation-diff.md ([artifact](%s)):\n\n' "$DIFF_URL"
+              printf '```bash\n'
+              printf 'gh run download %s -R %s -n mutation-diff -D /tmp/mutation-diff\n' "$GITHUB_RUN_ID" "$GITHUB_REPOSITORY"
+              printf '```\n'
+            else
+              printf 'The nix/mutation-diff.jq on the base branch, missing or out of step with this run, could not render its report. See the run.\n'
+            fi
+          } > comment.md
+
+          payload="$(jq -n --rawfile body comment.md '{body: $body}')"
+          id="$(MARKER="$marker" gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith(env.MARKER))) | .id' | head -n 1)"
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" --input - <<<"$payload" > /dev/null
+          else
+            gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --input - <<<"$payload" > /dev/null
+          fi
