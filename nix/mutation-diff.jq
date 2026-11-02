@@ -57,7 +57,10 @@ def report($head; $base):
 # and one_line strips every character that ends a Markdown line, so no line can
 # close the fence.
 def render:
-  def budget_bytes: 58000; # GitHub refuses a comment over 65536 characters.
+  # GitHub refuses a comment over 65536 characters. The whole comment stays
+  # within 58000 bytes: this output within 57000, and the text mutation.yaml
+  # wraps around it is under 1000.
+  def budget_bytes: 57000;
   def one_line: tostring | gsub("[\u0000-\u0008\u000a-\u001f\u007f\u0085\u2028\u2029]"; " ");
   def num: if type == "number" then . else error("mutation-diff.json: \(.) is not a number") end;
   def lines($prefix): tostring | split("\n")[:12] | map($prefix + (one_line | .[:200]) + "\n") | add // "";
@@ -65,14 +68,17 @@ def render:
     "@@ \(.status | one_line) \(.file | one_line):\(.line | one_line) \(.operator | one_line) @@\n"
     + (.original | lines("- "))
     + (.replacement | lines("+ "));
+  def fenced: if . == "" then "" else "\n```diff\n" + . + "```\n" end;
+  def cut_note: if . > 0 then "\n\(.) more not shown: they are in `mutation-diff.json`.\n" else "" end;
 
   if .schema != 1 then error("mutation-diff.json: schema \(.schema | one_line), expected 1") else . end
   | (.totals | map_values(num)) as $t
+  | (.mutants | length) as $n
+  | ("| Mutants | Killed | Survived | Timed out | Uncovered | Skipped |\n|---|---|---|---|---|---|\n"
+      + "| \($t.mutants) | \($t.killed) | \($t.survived) | \($t.timedOut) | \($t.uncovered) | \($t.skipped) |\n"
+      + (if .notAssessed == "" then "" else "\n" + not_assessed + "\n" end)) as $table
+  # The fence gets what the table, its own delimiters and the longest cut note leave.
+  | (budget_bytes - ($table + ("x" | fenced) + ($n | cut_note) | utf8bytelength) + 1) as $fence_budget
   | (reduce (.mutants[] | block) as $b ({text: "", shown: 0};
-      if (.text + $b | utf8bytelength) > budget_bytes then . else .text += $b | .shown += 1 end)) as $fence
-  | ((.mutants | length) - $fence.shown) as $cut
-  | "| Mutants | Killed | Survived | Timed out | Uncovered | Skipped |\n|---|---|---|---|---|---|\n"
-    + "| \($t.mutants) | \($t.killed) | \($t.survived) | \($t.timedOut) | \($t.uncovered) | \($t.skipped) |\n"
-    + (if .notAssessed == "" then "" else "\n" + not_assessed + "\n" end)
-    + (if $fence.shown == 0 then "" else "\n```diff\n" + $fence.text + "```\n" end)
-    + (if $cut > 0 then "\n\($cut) more not shown: they are in `mutation-diff.json`.\n" else "" end);
+      if (.text + $b | utf8bytelength) > $fence_budget then . else .text += $b | .shown += 1 end)) as $fence
+  | $table + ($fence.text | fenced) + ($n - $fence.shown | cut_note);

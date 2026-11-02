@@ -30,12 +30,13 @@ jobs:
       diff-url: ${{ steps.diff.outputs.artifact-url }}
     steps:
       # A PR runs on its head, so the diff from the merge-base with its base is
-      # exactly its own change. That merge-base needs the history.
+      # exactly its own change. That merge-base needs the whole history, base
+      # included. A plain 0, not a `&& 0 ||` expression: 0 is falsy there.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 1 }}
+          fetch-depth: 0
       - uses: ./.github/actions/nix
 
       - name: 🧬 Mutation testing, changed lines
