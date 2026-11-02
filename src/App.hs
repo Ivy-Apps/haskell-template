@@ -4,4 +4,6 @@ runApp :: IO ()
 runApp = putStrLn "Hello"
 
 dummyFun :: Int
-dummyFun = 42
+dummyFun = if limit > 100 then 0 else 42
+  where
+    limit = 7 :: Int
