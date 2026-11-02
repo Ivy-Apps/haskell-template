@@ -58,7 +58,7 @@ def report($head; $base):
 # close the fence.
 def render:
   def budget_bytes: 58000; # GitHub refuses a comment over 65536 characters.
-  def one_line: tostring | gsub("[\u0000-\u0008\u000a-\u001f\u007f\u0085  ]"; " ");
+  def one_line: tostring | gsub("[\u0000-\u0008\u000a-\u001f\u007f\u0085\u2028\u2029]"; " ");
   def num: if type == "number" then . else error("mutation-diff.json: \(.) is not a number") end;
   def lines($prefix): tostring | split("\n")[:12] | map($prefix + (one_line | .[:200]) + "\n") | add // "";
   def block:

@@ -7,6 +7,7 @@
 # this for `nix run .#build`, `nix run .#test` and `nix run .#quick-test`; keep
 # the two in step.
 parallel := "--ghc-options=-j4"
+mutation_check := ".#checks.x86_64-linux.mutation"
 
 # By default, list all available commands
 default:
@@ -66,7 +67,7 @@ zizmor:
 # build takes about 25 minutes. Fails on a test failing at baseline, on a failed
 # control or on a run with no control, never on a survivor. See nix/mutation.nix
 mutation:
-    nix build .#checks.x86_64-linux.mutation --accept-flake-config
+    nix build {{ mutation_check }} --accept-flake-config
     cat result/score.md
 
 # Mutation-test only the lines this branch adds or edits since its merge-base
@@ -84,13 +85,12 @@ mutation-diff base="origin/main":
     rm -rf "$out"
     mkdir -p "$out"
     base_sha="$(git merge-base {{ quote(base) }} HEAD)"
-    check=.#checks.x86_64-linux.mutation
-    nix build -L "$check.baseline" --accept-flake-config --no-link >> "$log" 2>&1 \
+    nix build -L "{{ mutation_check }}.baseline" --accept-flake-config --no-link >> "$log" 2>&1 \
         || fail "a test fails before any mutation, so every kill would be false"
     # The runner exits 1 on a survivor and on a crash alike. Only a run that
     # returned prints its report line, and only then is report.json whole.
     status=0
-    nix run "$check.diff" --accept-flake-config -- --base "$base_sha" --no-fail-fast --out-dir "$out" >> "$log" 2>&1 || status=$?
+    nix run "{{ mutation_check }}.diff" --accept-flake-config -- --base "$base_sha" --no-fail-fast --out-dir "$out" >> "$log" 2>&1 || status=$?
     case "$status" in 0 | 1) ;; *) fail "the runner died with exit code $status" ;; esac
     grep -q '^Machine-readable report: ' "$log" || fail "the runner ended without writing its report"
     # A diff selects a control only where it touches one (each module's first
