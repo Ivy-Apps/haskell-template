@@ -164,6 +164,8 @@
             pkgs.zizmor
             # `just update-golden` stages the re-recorded snapshots.
             pkgs.git
+            # `just mutation-diff` filters and renders the report with it.
+            pkgs.jq
             config.treefmt.build.wrapper
           ]
           # Behind `just deslop`. deslop releases a binary for every system here

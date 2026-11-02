@@ -10,9 +10,11 @@
   through `fromHspec`, behind the cabal flag `mutation` and the flake check
   `checks.<system>.mutation`. Outside `just check` and the aggregate `Check`:
   a new x86_64 workflow, `mutation.yaml`, runs it on every PR, weekly and by
-  hand, shows the score in the job summary and uploads the report. A test failing at baseline fails it, a survivor never does.
-  On a PR a bot keeps one comment with the mutants in the changed files, and
-  the `mutation-diff` artifact holds the same list uncut. Read the
+  hand, shows the score in the job summary and uploads the report. A test failing at baseline, a failed control or a run with no control fails it, a survivor never does.
+  `just mutation-diff [base]` mutates only the lines a branch adds or edits and
+  prints the survivors. On a PR, CI runs it against the PR's base and a bot
+  keeps one comment with them; the `mutation-diff` artifact holds the same
+  list uncut. Read the
   licence conditions in the README before cloning this template for
   closed-source commercial work.
 * `Effects.System` has a spec, added for a mutant nothing covered.

@@ -63,11 +63,45 @@ zizmor:
 
 # Mutation-test the library: prints the score and leaves the report in
 # result/haskell-app/report.{txt,json}. Not part of `check`: a local cold
-# build takes about 25 minutes. Fails on a test failing at baseline, never on a
-# survivor. See nix/mutation.nix
+# build takes about 25 minutes. Fails on a test failing at baseline, on a failed
+# control or on a run with no control, never on a survivor. See nix/mutation.nix
 mutation:
     nix build .#checks.x86_64-linux.mutation --accept-flake-config
     cat result/score.md
+
+# Mutation-test only the lines this branch adds or edits since its merge-base
+# with `base`, uncommitted edits included. Prints the compact report and writes
+# it, with mutation-diff.json, to dist-newstyle/mutation-diff/; the JSON's path
+# is the last line. Exits 0 whatever survives. Fails only when the run itself
+# did: a test failing at baseline, a failed control or a runner that died. Tool
+# output goes to run.log there. See nix/mutation-diff.jq
+mutation-diff base="origin/main":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    out="$PWD/dist-newstyle/mutation-diff"
+    log="$out/run.log"
+    fail() { echo "mutation-diff: $1. Full log: $log" >&2; tail -n 30 "$log" >&2; exit 1; }
+    rm -rf "$out"
+    mkdir -p "$out"
+    base_sha="$(git merge-base {{ quote(base) }} HEAD)"
+    check=.#checks.x86_64-linux.mutation
+    nix build -L "$check.baseline" --accept-flake-config --no-link >> "$log" 2>&1 \
+        || fail "a test fails before any mutation, so every kill would be false"
+    # The runner exits 1 on a survivor and on a crash alike. Only a run that
+    # returned prints its report line, and only then is report.json whole.
+    status=0
+    nix run "$check.diff" --accept-flake-config -- --base "$base_sha" --no-fail-fast --out-dir "$out" >> "$log" 2>&1 || status=$?
+    case "$status" in 0 | 1) ;; *) fail "the runner died with exit code $status" ;; esac
+    grep -q '^Machine-readable report: ' "$log" || fail "the runner ended without writing its report"
+    # A diff selects a control only where it touches one (each module's first
+    # mutation site, then every 100th), so zero controls is normal here.
+    jq -e '.controls.failed == 0' "$out/report.json" > /dev/null \
+        || fail "a control was killed, so the harness kills unmutated code and every kill may be false"
+    jq -L nix --arg head "$(git rev-parse HEAD)" --arg base "$base_sha" \
+        'include "mutation-diff"; report($head; $base)' "$out/report.json" > "$out/mutation-diff.json"
+    jq -j -L nix 'include "mutation-diff"; render' "$out/mutation-diff.json" > "$out/mutation-diff.md"
+    cat "$out/mutation-diff.md"
+    echo "$out/mutation-diff.json"
 
 # Fetch the Hackage index that cabal.project's pinned index-state requires
 update-index:

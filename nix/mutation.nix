@@ -1,7 +1,8 @@
 # Mutation testing: sydtest-mutation over the hspec suite, through `fromHspec`.
 #
-# Not part of `just check`. Run it with `just mutation`, then read
-# result/score.md and result/<project>/report.{txt,json}.
+# Not part of `just check`. `just mutation` runs every mutant, then read
+# result/score.md and result/<project>/report.{txt,json}. `just mutation-diff`
+# runs `.diff` (passthru), which mutates only the lines a branch changes.
 {
   pkgs,
   hpkgs,
@@ -66,8 +67,20 @@ in
 pkgs.runCommand "${projectName}-mutation"
   {
     nativeBuildInputs = [ pkgs.jq ];
+    passthru = {
+      inherit baseline;
+      inherit (report) diff;
+    };
   }
   ''
+    # Every module gets a control at its first mutation site, so a whole run with
+    # none never checked the harness for false kills: its numbers prove nothing.
+    # A failed control already fails the report build itself.
+    jq -e '.controls.passed > 0' ${report}/${projectName}/report.json > /dev/null || {
+      echo "mutation: NO CONTROLS RAN, so the run never checked itself for false kills." >&2
+      exit 1
+    }
+
     mkdir "$out"
     ln -s ${report}/${projectName} "$out/${projectName}"
     ln -s ${baseline} "$out/baseline"

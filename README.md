@@ -55,6 +55,7 @@ test/Doubles/          -- test doubles for the effects
 bench/                 -- criterion benchmark + bench/reference.yaml
 nix/ghcid/             -- the ghcid daemon behind quick-typecheck and quick-test
 nix/mutation.nix       -- mutation testing; nix/mutation.yaml is its plugin config
+nix/mutation-diff.jq   -- the mutation-diff report and the PR comment's renderer
 docs/                  -- DEVELOPMENT.md and architecture decision records
 haskell-app.cabal      -- package definition
 cabal.project(.freeze) -- Cabal pins (index-state + frozen versions)
@@ -94,6 +95,7 @@ From inside the dev shell (`just --list` shows them all):
 | Quick typecheck        | `just quick-typecheck` / `just stop-ghcid`|
 | Quick test             | `just quick-test [filter]`                |
 | Mutation testing       | `just mutation`                           |
+| Mutation-test a branch | `just mutation-diff [base]`               |
 | Update deps            | `just update-deps`                        |
 | Update golden          | `just update-golden`                      |
 | Regenerate `hie`       | `just update-hie`                         |
@@ -117,6 +119,16 @@ It runs [sydtest-mutation](https://github.com/NorfairKing/sydtest) over the hspe
 suite through `fromHspec`, on x86_64-linux, and is not part of `just check`. It is
 pinned in `flake.nix` and only `checks.<system>.mutation` evaluates it, so the
 normal build, the dev shells and the `just check` jobs never fetch it.
+
+`just mutation-diff [base]` mutates only the lines a branch adds or edits since
+its merge-base with `base` (default `origin/main`), uncommitted edits included.
+It prints a compact report: the totals, then each survived, uncovered or timed
+out mutant with its file, line, operator, original and replacement. It writes
+`mutation-diff.json` and `mutation-diff.md` to `dist-newstyle/mutation-diff/`
+and prints the JSON's path last. It exits 0 whatever survives; only a run that
+itself failed exits non-zero. Deletions and changes outside `src/` are not
+assessed. On a PR, CI runs it against the PR's base and keeps one comment with
+that report, plus the `gh run download` line for the `mutation-diff` artifact.
 
 ### Licence warning: read this before you clone the template
 
@@ -160,10 +172,12 @@ This is not legal advice. Read the licence yourself.
 
 ### Removing it
 
-1. Delete `nix/mutation.nix`, `nix/mutation.yaml`, `test/MutationMain.hs`,
+1. Delete `nix/mutation.nix`, `nix/mutation.yaml`, `nix/mutation-diff.jq`,
+   `test/MutationMain.hs`,
    `test/Spec.hs`, `.github/workflows/mutation.yaml` and
    `docs/adr/0006-mutation-testing-is-advisory-and-outside-check.md`.
-2. `flake.nix`: delete the `sydtest` input and the `checks.mutation` attribute,
+2. `flake.nix`: delete the `sydtest` input, the `checks.mutation` attribute and
+   `pkgs.jq` with its comment,
    then run `nix flake lock`.
 3. `haskell-app.cabal`: delete `flag mutation` and its comment. Replace the
    `if flag(mutation)` block, with its comment and `else`, by the two lines
@@ -173,7 +187,7 @@ This is not legal advice. Read the licence yourself.
    `lookupEnv goldenActualDirEnv` line, remove `withActualIn actualDir name . `
    from the `pure` line after that lookup, and import `Golden` without
    `(actualFile)`.
-5. `Justfile`: delete the `mutation` recipe.
+5. `Justfile`: delete the `mutation` and `mutation-diff` recipes.
 6. `README.md`, `CLAUDE.md`, `docs/DEVELOPMENT.md`, `CHANGELOG.md`: delete what
    mentions it.
 7. Run `just fmt`. `rg -il 'mutation|sydtest'` then finds nothing, and `flake.lock`

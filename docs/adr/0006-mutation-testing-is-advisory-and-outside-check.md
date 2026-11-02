@@ -45,20 +45,25 @@ read-only source tree, so a test can fail there alone.
   build, so a cached green result cannot have skipped it, and `just mutation` and
   CI need no check of their own. The same run cannot carry fail-fast, because it
   would also abort on the first survivor.
-- **PRs run the full check.** The job goes red only on what makes the numbers
-  false: a failed baseline or a failed control.
+- **PRs run the diff-scoped runner**, `just mutation-diff` against the PR's
+  base, so the comment lists the mutants on the lines the PR adds or edits. The
+  runner exits 1 on a survivor and on a crash alike, so the recipe ignores its
+  code: a run counts only if it ended with its report line and no control
+  failed. The job goes red only on what makes the numbers false: a failed
+  baseline, a failed control or a runner that died. A diff selects a control
+  only where it touches one, so zero controls is normal there; a whole run with
+  zero controls fails, as every module has one.
+- **The weekly and manual runs mutate everything**, so the score covers the
+  whole library.
 
 ## Considered options
 
 - **Grep the build log for the baseline warning.** Rejected: a cached result has
   no fresh log, and on a CI cache hit `nix log` has nothing to read, so a green
   run would either skip the guard or fail for no reason.
-- **The diff-scoped runner on PRs.** It picks the right mutants, but rejected for
-  now. Nearly all of a run is the instrumented build, which it needs too: 40s
-  against 45s here. It exits 1 for a survivor, for an uncovered mutant and for a
-  bad argument alike, so an advisory job could not tell them apart without
-  reading its output, and it reports only the subset. Worth another look when a
-  full run gets slow.
+- **The full run on PRs, its report filtered to the changed files.** Rejected:
+  whole files bury the PR's own mutants among old ones, and the time saved by
+  the diff runner is small here but grows with the library.
 - **Migrate the tests to native sydtest.** Same verdicts as the bridge on the 63
   outcomes compared, so all cost and no gain. It would also tie every clone to
   the licence for its plain test runs.
